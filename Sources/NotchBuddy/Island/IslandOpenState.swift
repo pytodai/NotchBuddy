@@ -14,7 +14,8 @@ import Foundation
 ///   the moment it lets go;
 /// - opened from afar (the hotkey, «Настройки…» in the menu bar) the pointer is elsewhere: it closes once the pointer
 ///   has come and gone, on a click anywhere else, on the hotkey again, when another app comes to the front (⌘Tab), or
-///   `remoteVisitWindow` after it opened if the pointer never came.
+///   `remoteVisitWindow` after it opened if the pointer never came;
+/// - while the closed «Островок» is dragged sideways (`beginDrag` … `endDrag`) nothing opens or pins it.
 struct IslandOpenState: Equatable {
     enum Opener: Equatable {
         /// The pointer rested on the closed island (or came straight back after it closed).
@@ -36,6 +37,9 @@ struct IslandOpenState: Equatable {
     private(set) var outsideSince: TimeInterval?
     /// When it opened (monotonic seconds; nil: closed).
     private(set) var openedAt: TimeInterval?
+    /// The closed «Островок» is being dragged sideways (`IslandDrag`): nothing opens it (a hover, a click) and nothing pins
+    /// it until the drag ends. Survives `close()`.
+    private(set) var dragging = false
 
     /// How long the pointer stays off an open island before it closes.
     static let leaveDelay: TimeInterval = IslandMotion.closeDelay
@@ -47,8 +51,27 @@ struct IslandOpenState: Equatable {
     /// Worth polling the pointer for: open and free to close.
     var watchesLeave: Bool { isOpen && !pinned }
 
-    /// Opens (or keeps open, taking the new reason). `pin`: Settings → «Закреплять открытый список».
+    /// Whether a hover or a click may open the island now: it is closed and not being dragged.
+    var mayOpen: Bool { !isOpen && !dragging }
+
+    /// A press on the closed island travelled far enough sideways to be a drag. Returns false (no drag) when the island
+    /// is open: only the closed capsule is dragged.
+    @discardableResult
+    mutating func beginDrag() -> Bool {
+        guard !isOpen else { return false }
+        dragging = true
+        return true
+    }
+
+    /// The dragged capsule was let go (or the drag was cut short).
+    mutating func endDrag() {
+        dragging = false
+    }
+
+    /// Opens (or keeps open, taking the new reason). `pin`: Settings → «Закреплять открытый список». Nothing while the
+    /// closed capsule is dragged (a drag never opens the island).
     mutating func open(_ by: Opener, pointerInside: Bool, pin: Bool = false, now: TimeInterval) {
+        guard !dragging else { return }
         let wasOpen = isOpen
         if !wasOpen || by != opener { openedAt = now }
         opener = by
@@ -123,6 +146,8 @@ struct IslandOpenState: Equatable {
     }
 
     mutating func close() {
+        let dragging = dragging
         self = IslandOpenState()
+        self.dragging = dragging
     }
 }

@@ -100,6 +100,8 @@ enum IslandMotion {
     static let hover = GeoSpring("hover", 0.30, 0.80)                       // 1.5 %   162 ms
     static let press = GeoSpring("press", 0.20, 0.80)                       // 1.5 %   108 ms
     static let reduced = GeoSpring("reduced", 0.22, 1.0)                    // Reduce Motion
+    /// A dragged «Островок» let go: it settles where it was dropped (back inside the screen, or onto the center) softly.
+    static let drop = GeoSpring("drop", 0.40, 0.78)                         // 2.0 %   ~210 ms
     /// The flying agent mark: quicker than the silhouette, so it lands before the text beside it. It never
     /// leaves the silhouette, though: out of the closed island it would outrun the growing edge, so it is
     /// held just inside it (`HeroPlacement`) and lands as the edge passes its slot.

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Frame-pacing benchmark of the island's transitions (debug tool; see "Measuring" in docs/island-architecture.md).
 #
-#   scripts/perf-bench.sh [--load] [--tabs] [--style notch|island] [--runs N] [--bin PATH/TO/NotchBuddy] [--label TEXT]
+#   scripts/perf-bench.sh [--load] [--tabs] [--drag] [--style notch|island] [--runs N] [--bin PATH/TO/NotchBuddy] [--label TEXT]
 #
 # Starts a separate dev instance (NOTCHBUDDY_PERF=1, its own NOTCHBUDDY_HOME and socket, so its single-instance
 # lock lives in that home too; no menu bar item, no keychain, no network, no sounds, never takes the pointer)
@@ -10,13 +10,18 @@
 # its perf.log. With --load, one `yes > /dev/null` per core runs meanwhile (killed afterwards). With --tabs the list
 # gets a tab strip (Агенты, Таймер, Система) and each run also switches tabs forward and back ("tab"; once cold, as a
 # swipe does it, twice as a click after the pointer rested on the tab). --style picks «Чёлка» (notch, the default) or
-# «Островок» (island) for the dev instance only. The dev island is invisible (1 % opacity, click-through) while it
-# runs. The installed app is not touched.
+# «Островок» (island) for the dev instance only. --drag (implies --style island) also moves the capsule aside each run,
+# opens and closes the list from there ("open-offset", "close-offset": it slides inward as it grows), drags the capsule
+# sideways and back ("drag": 0.45 s of pointer events at 120 Hz, then the settle), and with the capsule at the left
+# edge opens the list as a resting pointer does and grabs it where the capsule sits ("grab": it folds back into the
+# capsule, which is pulled 360 pt and let go). The dev island is invisible (1 % opacity, click-through) while it runs.
+# The installed app is not touched.
 set -euo pipefail
 
 RUNS=10
 LOAD=0
 TABS=0
+DRAG=0
 STYLE=notch
 LABEL=""
 BIN=""
@@ -24,6 +29,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --load) LOAD=1 ;;
         --tabs) TABS=1 ;;
+        --drag) DRAG=1; STYLE=island ;;
         --style) STYLE="$2"; shift ;;
         --runs) RUNS="$2"; shift ;;
         --bin) BIN="$2"; shift ;;
@@ -78,7 +84,7 @@ if [ "$LOAD" = 1 ]; then
     sleep 3
 fi
 
-TAG="bench ${LABEL:+$LABEL }style=$STYLE load=$LOAD runs=$RUNS $(date +%s)"
+TAG="bench ${LABEL:+$LABEL }style=$STYLE drag=$DRAG load=$LOAD runs=$RUNS $(date +%s)"
 send mark "begin $TAG"
 for _ in $(seq "$RUNS"); do
     send hover;       sleep 0.45
@@ -90,6 +96,18 @@ for _ in $(seq "$RUNS"); do
         send tabClick agents;  sleep 0.85
     fi
     send close;       sleep 0.7
+    if [ "$DRAG" = 1 ]; then
+        send offset -480; sleep 0.6
+        send hoverOpen;   sleep 0.8
+        send close;       sleep 0.7
+        send offset 0;    sleep 0.6
+        send drag -360;   sleep 1.1
+        send drag 360;    sleep 1.1
+        send offset -2000; sleep 0.6
+        send hoverOpen;   sleep 0.8
+        send grab 360;    sleep 1.2
+        send offset 0;    sleep 0.6
+    fi
     send flash;       sleep 0.8
     send dismiss;     sleep 0.7
     send card;        sleep 0.8

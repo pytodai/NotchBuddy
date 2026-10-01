@@ -9,6 +9,8 @@ import NotchBuddyCore
 struct IslandSettingsSection: View {
     @ObservedObject var store: SettingsStore
     let screens: [ScreenOption]
+    /// Static renders: «Добавить приложение…» open with these apps.
+    var previewPicking: [PickableApp]?
     @Environment(\.islandReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -43,8 +45,12 @@ struct IslandSettingsSection: View {
             IslandStyleSetting(store: store, screens: screens)
                 .settingsRowIn(6)
             if store.values.usesIslandStyle {
-                // Only «Островок» has a capsule; «Чёлка» is laid out around the camera or the menu bar.
+                // Only «Островок» has a capsule (and can be dragged sideways); «Чёлка» is laid out around the camera or
+                // the menu bar.
                 CapsuleWidthSetting(store: store)
+                    .settingsRowIn(7)
+                    .transition(.opacity.combined(with: .offset(y: -6)))
+                IslandPositionSetting(store: store)
                     .settingsRowIn(7)
                     .transition(.opacity.combined(with: .offset(y: -6)))
             }
@@ -59,6 +65,8 @@ struct IslandSettingsSection: View {
                 ScreenPicker(selection: $store.values.screen, screens: screens)
             }
             .settingsRowIn(9)
+            AppFilterSetting(store: store, previewPicking: previewPicking)
+                .settingsRowIn(10)
         }
         .animation(SettingsMotion.expand(reduce: reduceMotion), value: store.values.usesIslandStyle)
     }
@@ -1213,7 +1221,7 @@ struct PrivacySettingsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SettingsNote(text: L("Никакой аналитики, телеметрии и автообновлений. Всё остаётся на этом Mac."),
+            SettingsNote(text: L("Никакой аналитики и телеметрии. Всё остаётся на этом Mac."),
                          tone: .success, symbol: "hand.raised.fill")
                 .settingsRowIn(0)
             SettingsRow(title: L("Логи"), hint: "~/Library/Logs/NotchBuddy") {

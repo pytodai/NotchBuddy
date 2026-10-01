@@ -30,7 +30,8 @@ Notchbuddy sits at the top of the screen and keeps track of the coding agents yo
 - Click a session to bring its iTerm2 or Terminal tab, tmux pane or host app (Claude, Codex, VS Code, Ghostty, Warp…) to the front. Notchbuddy never launches an app that isn't running.
 - 5-hour and weekly usage limits for Claude, Codex and Kimi in the list header. Click to switch agents (Auto → Claude → Codex → Kimi).
 - An animated pixel mascot for each agent that shows what its session is doing: thinking, working, waiting for you, done, error, idle.
-- Two styles. Notch sits flush with the top edge around the camera housing. Island is a capsule floating just below it, like the iPhone's Dynamic Island, and its closed width is adjustable. You choose the style separately for external displays and for a screen with a notch. Macs without a notch work too.
+- Two styles. Notch sits flush with the top edge around the camera housing. Island is a capsule floating just below it, like the iPhone's Dynamic Island; its closed width is adjustable, and you can drag it sideways along the top edge. You choose the style separately for external displays and for a screen with a notch. Macs without a notch work too.
+- Show the island in every app, only in the apps you choose, or everywhere except them (games, video, Keynote). Permission requests and "needs you" notices can still come up where it hides.
 - Optional widgets: music, calendar, timer, system and a file shelf. Drop files on the notch to keep them there and drag them back out when you need them. All widgets are off by default.
 - Animations are played by the window server (Core Animation), so they stay at 60 fps even while the Mac is busy compiling. The island never takes keyboard focus on its own, and clicks next to it go to the apps underneath.
 - English and Russian, switched live in Settings.
@@ -52,15 +53,30 @@ Notchbuddy sits at the top of the screen and keeps track of the coding agents yo
 
 ### Install
 
+1. Download `Notchbuddy-<version>.dmg` from [Releases](https://github.com/pytodai/NotchBuddy/releases/latest).
+2. Open it.
+3. Drag Notchbuddy to Applications.
+4. Launch Notchbuddy.
+
+The app is signed with Developer ID and notarized by Apple. It runs natively on Apple silicon and Intel Macs.
+
+On first launch Notchbuddy offers to install hooks for the agents it finds; the island works right away. Restart running Codex and Kimi sessions so they pick up the hooks.
+
+**Build from source:**
+
 ```bash
 git clone https://github.com/pytodai/NotchBuddy.git
 cd NotchBuddy
 scripts/build-app.sh --install
 ```
 
-This builds `NotchBuddy.app` in release mode and signs it with your first "Apple Development" certificate, or ad hoc if there is none (set `NOTCHBUDDY_SIGN_IDENTITY` to pick one). Then it copies the app to `~/Applications` and starts it. On first launch Notchbuddy offers to install hooks for the agents it finds; the island works right away. Restart running Codex and Kimi sessions so they pick up the hooks.
+This builds `NotchBuddy.app` in release mode and signs it with your first "Apple Development" certificate, or ad hoc if there is none (set `NOTCHBUDDY_SIGN_IDENTITY` to pick one). Then it copies the app to `~/Applications` and starts it.
 
-There are no prebuilt binaries yet.
+### Updates
+
+Notchbuddy checks for a new version once a day in the background. When it finds one, a dot appears on its menu bar icon and the menu offers **Update to <version>…**, which opens the update window with what's new and an **Install Update** button. Right after launch the window opens by itself. To check right now, use **Check for Updates…** in the menu bar menu or in Settings → **Updates**. Notchbuddy installs the update and starts again by itself.
+
+Turn on **Install automatically** in Settings → **Updates** and updates download on their own. A downloaded update installs when you quit, when you choose **Update to <version> and Relaunch** in the menu (or **Install and Relaunch** in Settings), or by itself once nothing would be lost: no session has had an event for 20 minutes, no card is waiting to be read and the Mac has been idle for a couple of minutes. Every update is verified with an EdDSA signature before it installs, and each release is signed with the same Developer ID and notarized by Apple. Updates are handled by [Sparkle](https://sparkle-project.org).
 
 ### Hooks
 
@@ -86,15 +102,18 @@ Every edit first backs the file up to `~/.notchbuddy/backups/`, leaves other hoo
 - Click a session to expand it: full prompt, last answer, recent tool calls, Jump, Copy path, Open folder, Remove.
 - 📌 keeps the island open. ⌃⌥N opens or closes it from anywhere (change it in Settings → Hotkey).
 - ⌘Y, ⌘N and ⌘T answer a permission card while the pointer is over it.
+- In the Island style, drag the closed capsule sideways to move it along the top edge. Its place is kept for each display; double-click the capsule, or use Settings → Island → Reset position, to bring it back to the center.
 
 ### Settings
 
 Click ⚙️ in the open island, or Settings… in the menu bar. Changes apply immediately.
 
 - Island: hover delay or click only, show requests at once, pin the open list, notice length, show the agent's answer when it finishes, style (Notch or Island) for displays with and without a notch, capsule width for the Island style, size, display.
+- Show in: All apps, Only chosen apps or All except chosen, each with its own list (add a running app or any app from the Applications folder), and Always show when an agent needs you. Position: Reset position puts a dragged capsule back in the center.
 - Sounds: on/off, volume, a sound per event.
 - Agents and hooks: status, install, reinstall, remove.
 - Limits: Claude via API, Kimi via API, the usage ring, whose limits to show, refresh rate.
+- Updates: version, Check for Updates…, check automatically, install automatically, What's New.
 - Also Hotkey, Widgets, Appearance, Language (Auto / English / Русский), Launch at login, and Privacy and logs.
 
 ### Widgets
@@ -105,12 +124,13 @@ Widgets are off by default, so out of the box the island shows only your session
 - Calendar: today and tomorrow, "in 7 min" with a Join button for calls.
 - Timer: presets and custom timers, with a sound and a small celebration at the end.
 - System: battery, CPU, memory and disk.
-- Shelf: drop files on the notch to park them there, then drag them out wherever you need them.
+- Shelf: drop files on the notch to park them there, then drag them out wherever you need them (grab a file anywhere on its tile).
 
 ### Privacy
 
-- No analytics, crash reporting, auto-updates, accounts or licensing.
+- No analytics, crash reporting, accounts or licensing.
 - The only network requests:
+  - Update checks (once a day, one switch in Settings → Updates turns them off): `appcast.xml` from this repository, with the release notes inside it, and the update itself from GitHub Releases when you install one. Only the app's and Sparkle's versions are sent, in the User-Agent.
   - Claude limits via API (on by default, one switch turns it off): `api.anthropic.com/api/oauth/usage`, at most every 5 minutes, with the token Claude Code keeps in your Keychain. The token is only read, never refreshed or stored. With the switch off there is no network call and no Keychain access.
   - Kimi limits via API: off by default.
   - Music widget (off by default): album artwork from Spotify's CDN.
@@ -143,7 +163,8 @@ agent ──hook──▶ notchbuddy-bridge ──unix socket──▶ NotchBudd
 
 ```bash
 ~/.notchbuddy/bin/notchbuddy-bridge hooks uninstall all
-rm -rf ~/Applications/NotchBuddy.app ~/.notchbuddy ~/Library/Logs/NotchBuddy
+rm -rf /Applications/NotchBuddy.app ~/Applications/NotchBuddy.app ~/.notchbuddy ~/Library/Logs/NotchBuddy
+rm -rf ~/Library/Caches/me.sokolov.notchbuddy ~/Library/HTTPStorages/me.sokolov.notchbuddy
 defaults delete me.sokolov.notchbuddy
 ```
 
@@ -157,6 +178,8 @@ swift test
 ```
 
 A detailed guide (in Russian) is in [docs/guide.ru.md](docs/guide.ru.md), and [docs/island-architecture.md](docs/island-architecture.md) describes the island's animation engine. `NotchBuddy --render-previews <dir>` draws every state without starting the app. `scripts/promo/render.sh` re-renders the video above.
+
+Releases: `scripts/release.sh <version> <build> <notes-file>` sets the version and builds a universal app signed with a Developer ID certificate (hardened runtime, secure timestamp). Apple notarizes it and the ticket is stapled; the `Notchbuddy-<version>.zip` for Sparkle and the `Notchbuddy-<version>.dmg` are made from the stapled app, and the DMG is signed, notarized and stapled as well. Then the script signs the zip with Sparkle's EdDSA key and adds it, with the release notes, to `appcast.xml`. It needs a "Developer ID Application" certificate in the login keychain and a notarytool profile named `notchbuddy` (`xcrun notarytool store-credentials notchbuddy`). The tag is `v<version>` unless `RELEASE_TAG` names another one; a release that already exists on GitHub only gets the new files added. Nothing is committed, tagged or published: the script prints the publishing steps. `scripts/release-notes.sh <prev-tag|-> <new-tag> <notes-file>` prints the release notes on their own.
 
 ### License
 
@@ -186,7 +209,8 @@ Notchbuddy живёт у верхнего края экрана и следит 
 - Клик по сессии выводит вперёд её вкладку iTerm2 или Терминала, панель tmux или приложение (Claude, Codex, VS Code, Ghostty, Warp…). Незапущенные приложения Notchbuddy не открывает.
 - Пятичасовой и недельный лимиты Claude, Codex и Kimi в заголовке списка. Клик переключает агента (Авто → Claude → Codex → Kimi).
 - У каждого агента свой анимированный пиксельный персонаж. Он показывает, что происходит в сессии: думает, работает, ждёт вас, готово, ошибка, простаивает.
-- Два стиля. «Чёлка» прилегает к верхнему краю вокруг выреза камеры. «Островок» парит капсулой чуть ниже, как Dynamic Island на iPhone, и его ширину в свёрнутом виде можно настроить. Стиль выбирается отдельно для мониторов и для экрана с вырезом. На Mac без выреза тоже работает.
+- Два стиля. «Чёлка» прилегает к верхнему краю вокруг выреза камеры. «Островок» парит капсулой чуть ниже, как Dynamic Island на iPhone: его ширину в свёрнутом виде можно настроить, а саму капсулу перетащить вбок вдоль верхнего края. Стиль выбирается отдельно для мониторов и для экрана с вырезом. На Mac без выреза тоже работает.
+- Остров можно показывать во всех приложениях, только в выбранных или везде, кроме выбранных (игры, видео, Keynote). Запросы разрешений и «Ждёт тебя» при желании всё равно появятся там, где он спрятан.
 - Виджеты по желанию: музыка, календарь, таймер, система и полка для файлов. Бросьте файлы на чёлку, чтобы они полежали там, и вытащите обратно, когда понадобятся. По умолчанию все виджеты выключены.
 - Анимацию проигрывает оконный сервер (Core Animation), поэтому она держит 60 кадров в секунду, даже когда Mac занят сборкой. Остров сам не забирает клавиатуру, а клики рядом с ним уходят в окна под ним.
 - Русский и английский, переключаются в настройках на лету.
@@ -208,15 +232,30 @@ Notchbuddy живёт у верхнего края экрана и следит 
 
 ### Установка
 
+1. Скачайте `Notchbuddy-<версия>.dmg` со страницы [Releases](https://github.com/pytodai/NotchBuddy/releases/latest).
+2. Откройте его.
+3. Перетащите Notchbuddy в «Программы».
+4. Запустите Notchbuddy.
+
+Приложение подписано Developer ID и нотаризовано Apple. Оно работает нативно и на Apple silicon, и на Mac с Intel.
+
+При первом запуске Notchbuddy предложит установить хуки найденным агентам; остров работает сразу. Уже запущенные сессии Codex и Kimi перезапустите, чтобы они подхватили хуки.
+
+**Сборка из исходников:**
+
 ```bash
 git clone https://github.com/pytodai/NotchBuddy.git
 cd NotchBuddy
 scripts/build-app.sh --install
 ```
 
-Скрипт собирает `NotchBuddy.app` в режиме release и подписывает первым сертификатом «Apple Development», а если его нет, то ad hoc (свой сертификат задаётся через `NOTCHBUDDY_SIGN_IDENTITY`). Затем копирует приложение в `~/Applications` и запускает. При первом запуске Notchbuddy предложит установить хуки найденным агентам; остров работает сразу. Уже запущенные сессии Codex и Kimi перезапустите, чтобы они подхватили хуки.
+Скрипт собирает `NotchBuddy.app` в режиме release и подписывает первым сертификатом «Apple Development», а если его нет, то ad hoc (свой сертификат задаётся через `NOTCHBUDDY_SIGN_IDENTITY`). Затем копирует приложение в `~/Applications` и запускает.
 
-Готовых сборок пока нет.
+### Обновления
+
+Notchbuddy раз в день проверяет в фоне, не вышла ли новая версия. Если вышла, на значке в строке меню появляется точка, а в меню пункт «Обновить до <версия>…»: он открывает окно с описанием изменений и кнопкой установки. Сразу после запуска это окно открывается само. Проверить прямо сейчас можно пунктом «Проверить обновления…» в меню или в ⚙️ → «Обновления». Notchbuddy поставит обновление и перезапустится сам.
+
+Включите «Устанавливать автоматически» в ⚙️ → «Обновления», и обновления будут скачиваться сами. Скачанное обновление ставится при выходе, по пункту «Обновить до <версия> и перезапустить» в меню (или «Установить и перезапустить» в ⚙️) или само, когда ничего не потеряется: ни в одной сессии 20 минут не было событий, непрочитанных карточек нет, а к Mac пару минут не прикасались. Перед установкой каждое обновление проверяется подписью EdDSA, а каждый релиз подписан тем же Developer ID и нотаризован Apple. Обновлениями занимается [Sparkle](https://sparkle-project.org).
 
 ### Хуки
 
@@ -242,15 +281,18 @@ Notchbuddy получает события через систему хуков 
 - Клик по сессии раскрывает её: полный запрос, последний ответ, недавние инструменты, «Перейти», «Скопировать путь», «Открыть папку», «Убрать».
 - 📌 держит остров открытым. ⌃⌥N открывает и закрывает его откуда угодно (меняется в ⚙️ → «Горячая клавиша»).
 - ⌘Y, ⌘N и ⌘T отвечают на карточку разрешения, пока курсор над ней.
+- В стиле «Островок» свёрнутую капсулу можно перетащить вбок вдоль верхнего края. Место запоминается для каждого экрана; двойной клик по капсуле или ⚙️ → «Остров» → «Сбросить положение» возвращает её в центр.
 
 ### Настройки
 
 ⚙️ в открытом острове или «Настройки…» в меню. Всё применяется сразу.
 
 - Остров: задержка при наведении или только по клику, показывать запросы сразу, закреплять открытый список, длительность уведомления, показывать ответ агента при завершении, стиль («Чёлка» или «Островок») для мониторов и для экрана с вырезом, ширина капсулы «Островка», размер, экран.
+- «Где показывать»: «Во всех приложениях», «Только в выбранных» или «Везде, кроме выбранных», у каждого режима свой список (запущенное приложение или любое из папки «Программы»), и «Всегда показывать запросы агентов». «Положение»: «Сбросить положение» возвращает перетащенную капсулу в центр.
 - Звуки: вкл/выкл, громкость, свой звук на каждое событие.
 - Агенты и хуки: статус, установка, переустановка, удаление.
 - Лимиты: Claude через API, Kimi через API, кольцо лимита, чьи лимиты показывать, частота обновления.
+- «Обновления»: версия, «Проверить обновления…», «Проверять автоматически», «Устанавливать автоматически», «Что нового».
 - А также «Горячая клавиша», «Островки» (виджеты), «Оформление», «Язык · Language» (Авто / Русский / English), «Запуск при входе», «Приватность и логи».
 
 ### Виджеты
@@ -261,12 +303,13 @@ Notchbuddy получает события через систему хуков 
 - Календарь: сегодня и завтра, «через 7 мин» с кнопкой «Подключиться» для звонков.
 - Таймер: готовые и свои таймеры, в конце звук и небольшой салют.
 - Система: батарея, процессор, память, диск.
-- Полка: бросьте файлы на чёлку, они полежат там, а потом их можно вытащить куда нужно.
+- Полка: бросьте файлы на чёлку, они полежат там, а потом их можно вытащить куда нужно (файл берётся за любое место плитки).
 
 ### Приватность
 
-- Никакой аналитики, отчётов о сбоях, автообновлений, аккаунтов и лицензий.
+- Никакой аналитики, отчётов о сбоях, аккаунтов и лицензий.
 - Сетевые запросы только такие:
+  - Проверка обновлений (раз в день, выключается одним переключателем в ⚙️ → «Обновления»): `appcast.xml` из этого репозитория, описание изменений лежит прямо в нём, и само обновление со страницы GitHub Releases, когда вы его ставите. Отправляются только версии приложения и Sparkle, в User-Agent.
   - Лимиты Claude через API (включено по умолчанию, выключается одним переключателем): `api.anthropic.com/api/oauth/usage`, не чаще раза в 5 минут, с токеном, который Claude Code хранит в связке ключей. Токен только читается, он не обновляется и не сохраняется. Если выключить, не будет ни сети, ни обращений к связке ключей.
   - Лимиты Kimi через API: по умолчанию выключено.
   - Виджет «Музыка» (по умолчанию выключен): обложки альбомов с CDN Spotify.
@@ -299,7 +342,8 @@ Notchbuddy получает события через систему хуков 
 
 ```bash
 ~/.notchbuddy/bin/notchbuddy-bridge hooks uninstall all
-rm -rf ~/Applications/NotchBuddy.app ~/.notchbuddy ~/Library/Logs/NotchBuddy
+rm -rf /Applications/NotchBuddy.app ~/Applications/NotchBuddy.app ~/.notchbuddy ~/Library/Logs/NotchBuddy
+rm -rf ~/Library/Caches/me.sokolov.notchbuddy ~/Library/HTTPStorages/me.sokolov.notchbuddy
 defaults delete me.sokolov.notchbuddy
 ```
 
@@ -313,6 +357,8 @@ swift test
 ```
 
 Подробное руководство лежит в [docs/guide.ru.md](docs/guide.ru.md), устройство анимации острова описано в [docs/island-architecture.md](docs/island-architecture.md). `NotchBuddy --render-previews <каталог>` рисует все состояния без запуска приложения. `scripts/promo/render.sh` пересобирает ролик выше.
+
+Релизы: `scripts/release.sh <версия> <сборка> <файл-с-пунктами>` ставит версию и собирает универсальное приложение, подписанное сертификатом Developer ID (hardened runtime, метка времени). Apple его нотаризует, тикет прикрепляется (staple); `Notchbuddy-<версия>.zip` для Sparkle и `Notchbuddy-<версия>.dmg` делаются уже из такого приложения, а DMG тоже подписывается, нотаризуется и получает тикет. Затем скрипт подписывает zip ключом EdDSA для Sparkle и добавляет его вместе с описанием изменений в `appcast.xml`. Нужны сертификат «Developer ID Application» в связке ключей входа и профиль notarytool с именем `notchbuddy` (`xcrun notarytool store-credentials notchbuddy`). Тег — `v<версия>`, если `RELEASE_TAG` не задаёт другой; в уже существующий релиз на GitHub только добавляются новые файлы. Скрипт ничего не коммитит, не ставит тегов и не публикует: шаги публикации он печатает. `scripts/release-notes.sh <прошлый-тег|-> <новый-тег> <файл-с-пунктами>` печатает только описание релиза.
 
 ### Лицензия
 

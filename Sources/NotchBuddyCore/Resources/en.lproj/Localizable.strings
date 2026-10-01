@@ -406,7 +406,7 @@
 "Логи" = "Logs";
 "На экране без выреза остров не прячется" = "On a screen without a notch, the island stays visible";
 "Нажми сочетание · Esc — отмена" = "Press a shortcut · Esc to cancel";
-"Никакой аналитики, телеметрии и автообновлений. Всё остаётся на этом Mac." = "No analytics, telemetry or auto-updates. Everything stays on this Mac.";
+"Никакой аналитики и телеметрии. Всё остаётся на этом Mac." = "No analytics and no telemetry. Everything stays on this Mac.";
 "Новые агенты появятся здесь сами" = "New agents show up here on their own";
 "Обновлять лимиты" = "Refresh limits";
 "Основной" = "Main";
@@ -994,3 +994,55 @@
 "Следующий ответ" = "Next answer";
 "Показывать ответ агента при завершении" = "Show the agent’s answer when it finishes";
 "Карточка «Готово» с последним сообщением агента: перейти, скопировать, закрыть" = "A “Done” card with the agent’s last message: jump, copy, close";
+
+/* Settings → Остров: «Где показывать», the dragged capsule's position */
+"Во всех приложениях" = "All apps";
+"Только в выбранных" = "Only chosen apps";
+"Везде, кроме выбранных" = "All except chosen";
+"Остров виден, какое бы приложение ни было впереди." = "The island shows whatever app is in front.";
+"Остров виден, только пока впереди одно из этих приложений." = "The island shows only while one of these apps is in front.";
+"Остров прячется, пока впереди одно из этих приложений: игры, видео, Keynote." = "The island hides while one of these apps is in front: games, video, Keynote.";
+"Где показывать" = "Show in";
+"Всегда показывать запросы агентов" = "Always show when an agent needs you";
+"Разрешения и «Ждёт тебя» появятся и там, где остров спрятан" = "Permission requests and “Needs you” come up even where the island hides";
+"Пока пусто — остров виден везде" = "No apps yet — the island shows everywhere";
+"Пока пусто — остров нигде не прячется" = "No apps yet — the island hides nowhere";
+"Не установлено" = "Not installed";
+"Убрать из списка" = "Remove from the list";
+"Убрать %@" = "Remove %@";
+"Добавить приложение…" = "Add app…";
+"Другое…" = "Other…";
+"Выбрать приложение в папке «Программы»" = "Choose an app in the Applications folder";
+"Выбери приложения" = "Choose apps";
+"Остров учтёт их в «Где показывать»" = "The island will use them in “Show in”";
+"Добавить" = "Add";
+"Положение" = "Position";
+"Капсула сдвинута — двойной клик по ней тоже вернёт её в центр" = "The capsule is moved — a double click on it also brings it back to the center";
+"Потяни капсулу вбок, чтобы передвинуть; двойной клик — обратно в центр" = "Drag the capsule sideways to move it; double-click to bring it back to the center";
+"Сбросить положение" = "Reset position";
+
+/* Updates */
+"Проверить обновления…" = "Check for Updates…";
+"Обновить до %@…" = "Update to %@…";
+"Обновить до %@ и перезапустить" = "Update to %@ and Relaunch";
+"Обновления недоступны в этой сборке" = "Updates aren’t available in this build";
+"NotchBuddy · есть обновление" = "NotchBuddy · update available";
+"Обновления" = "Updates";
+"Установить и перезапустить" = "Install and Relaunch";
+"Проверять автоматически" = "Check automatically";
+"Раз в день, в фоне: один запрос appcast.xml на GitHub" = "Once a day in the background: one request for appcast.xml on GitHub";
+"Устанавливать автоматически" = "Install automatically";
+"Скачивает обновление само и ставит его при выходе или когда агенты давно не работают" = "Downloads updates on its own and installs them on quit, or once your agents have been idle for a while";
+"Что нового" = "What’s New";
+"Каждое обновление перед установкой проверяется подписью EdDSA." = "Every update is checked against its EdDSA signature before it installs.";
+"В этой сборке обновления выключены. Новые версии — на странице релизов." = "Updates are off in this build. New versions are on the releases page.";
+"Версия %@ скачана. Она установится при выходе или сама, когда агенты давно не работают." = "Version %@ is downloaded. It installs on quit, or on its own once your agents have been idle for a while.";
+"Вышла версия %@." = "Version %@ is out.";
+"Ещё не проверялось" = "Not checked yet";
+"Последняя проверка: %@" = "Last checked: %@";
+"Недоступны в этой сборке" = "Not available in this build";
+"Версия %@ скачана" = "Version %@ downloaded";
+"Доступна версия %@" = "Version %@ is available";
+"Только вручную" = "Manual only";
+"Раз в день" = "Once a day";
+"Раз в день · проверено %@" = "Once a day · checked %@";

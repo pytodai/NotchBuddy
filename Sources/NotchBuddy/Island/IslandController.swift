@@ -52,6 +52,8 @@ final class IslandController {
     private let pointer = IslandPointerTracker()
     private var panel: IslandPanel?
     private var stage: IslandStage?
+    /// The panel's content: the island's canvas at its horizontal place (a dragged «Островок»).
+    private var slider: IslandSlideView?
     private var cancellables: Set<AnyCancellable> = []
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
 
@@ -143,25 +145,54 @@ final class IslandController {
     /// The tab whose page was last built ahead, and when (monotonic seconds).
     private var preparedTab: WidgetKind?
     private var preparedAt = -TimeInterval.infinity
+    /// A press on the closed «Островок»: a click, or a drag sideways once it travels far enough (`IslandDrag`).
+    private var drag: IslandDrag?
+    /// The second press of a double click that re-centered the capsule was swallowed: so is its mouse-up.
+    private var swallowNextMouseUp = false
+    private var clickMonitor: Any?
+    /// A press on an open island where its closed capsule sits (`grabbableOpenIsland`): pulled sideways, the island folds
+    /// back into the capsule and the capsule follows the pointer (`grabbing`: its events are the drag's until the button
+    /// comes up).
+    private var grabPress: NSPoint?
+    private var grabbing = false
+    /// The app in front, for Settings → Остров → «Где показывать».
+    private let frontmost = FrontmostAppWatcher()
+    /// The settings the island reads and writes (the app's own store; tests hand in one of their own).
+    private let store: SettingsStore
+    /// Where the pointer is on screen and which buttons are down (the system's; tests drive their own).
+    var mouseLocation: () -> NSPoint = { NSEvent.mouseLocation }
+    var mouseButtons: () -> Int = { NSEvent.pressedMouseButtons }
+    /// Started on a fixed placement for tests (`start(on:)`): nothing global is watched or installed.
+    private var isolated = false
 
-    init(model: AppModel, widgets: WidgetHub? = nil) {
+    init(model: AppModel, widgets: WidgetHub? = nil, store: SettingsStore? = nil) {
         self.model = model
         self.widgets = widgets ?? .shared
+        self.store = store ?? .shared
     }
 
-    func start() {
+    func start() { start(on: nil) }
+
+    /// `fixed`: tests (`IslandControllerTests`). The island lives on that placement (a screen far from every real one) and
+    /// nothing global is touched: no event monitors, global hotkey, frontmost-app or screen watching; the pointer comes
+    /// from `mouseLocation` / `mouseButtons`.
+    func start(on fixed: IslandPlacement?) {
         guard panel == nil else { return }
+        isolated = fixed != nil
         let panel = IslandPanel()
         let container: IslandContainerView
         if IslandStage.enabled {
             // Core Animation draws the island (the render server plays every transition).
             let stage = IslandStage(state: state)
             self.stage = stage
-            container = IslandContainerView(host: stage.view)
+            slider = stage.slider
+            container = IslandContainerView(host: stage.slider)
         } else {
             let host = IslandHostingView(rootView: IslandRootView(state: state))
             host.sizingOptions = []
-            container = IslandContainerView(host: host)
+            let slider = IslandSlideView(content: host)
+            self.slider = slider
+            container = IslandContainerView(host: slider)
         }
         panel.contentView = container
         self.panel = panel
@@ -179,8 +210,9 @@ final class IslandController {
         state.onRetracted = { [weak self] in self?.retracted() }
         state.onHidden = { [weak self] in self?.orderOutIfHidden() }
         state.actions = IslandActions(
-            tappedClosedIsland: { [weak self] in self?.openFromClick() },
+            tappedClosedIsland: { [weak self] in self?.tappedClosedIsland() },
             pressClosedIsland: { [weak self] down in self?.pressClosedIsland(down) },
+            dragClosedIsland: { [weak self] event in self?.dragClosedIsland(event) ?? false },
             togglePin: { [weak self] in self?.togglePin() },
             jump: { [weak self] key in self?.jump(to: key) },
             remove: { [weak self] key in self?.remove(key) },
@@ -196,7 +228,7 @@ final class IslandController {
 
         keyFocus.pointerIsOverCard = { [weak self] in
             guard let self, let shape = self.islandHitShape(), let screen = self.applied?.screenFrame else { return false }
-            return shape.contains(NSEvent.mouseLocation, within: screen)
+            return shape.contains(self.mouseLocation(), within: screen)
         }
         keyFocus.onShortcut = { [weak self] shortcut in
             guard let self, let id = self.presentedCardID else { return }
@@ -239,21 +271,27 @@ final class IslandController {
         // A tile dragged out of the shelf: its drag loop may keep the mouse events from the monitors, so each move of
         // the drag re-checks the pointer (click-through off the island, held open until the drag ends).
         widgets.onShelfDragOut = { [weak self] in self?.pointerMoved(fromEvent: false) }
-        if !IslandPerf.enabled {
+        if !IslandPerf.enabled, !isolated {
             installSwipe()
+            installMouseFilter()
+            // Settings → Остров → «Где показывать» follows the app in front; apps added from an open panel bring the
+            // settings back.
+            frontmost.onChange = { [weak self] in self?.scheduleUpdate() }
+            frontmost.start()
+            AppChooser.reopenSettings = { [weak self] in self?.showSettings() }
             // Recording a new hotkey in Settings needs the keyboard, only while the pointer is over the island.
             IslandSettings.model.recorder.onKeyboardRequest = { [weak self] on in self?.keyFocus.setRecording(on) }
             GlobalHotkey.shared.bind(to: .shared) { [weak self] in self?.toggleFromHotkey() }
-            locator.preferredScreen = { SettingsScreens.screen(for: SettingsStore.shared.values.screen) }
+            locator.preferredScreen = { [store] in SettingsScreens.screen(for: store.values.screen) }
         }
         // Settings → Остров → Стиль: one for screens with a camera notch, one for monitors (the benchmark's instance
         // picks its own, `perfSetStyle`).
-        locator.style = { [weak self] screen in
+        locator.style = { [weak self, store] screen in
             if let forced = self?.forcedStyle { return forced }
-            return SettingsStore.shared.values.islandStyle(hasNotch: screen.safeAreaInsets.top > 0)
+            return store.values.islandStyle(hasNotch: screen.safeAreaInsets.top > 0)
         }
-        applySettings(SettingsStore.shared.values, initial: true)
-        SettingsStore.shared.$values
+        applySettings(store.values, initial: true)
+        store.$values
             .dropFirst()
             .sink { [weak self] values in
                 // `$values` fires before the store holds the new value: apply what it sends.
@@ -267,7 +305,12 @@ final class IslandController {
             .store(in: &cancellables)
 
         locator.onChange = { [weak self] placement in self?.placementChanged(placement) }
-        locator.start()
+        if let fixed {
+            locator.fixedPlacement = fixed
+            _ = locator.evaluate()
+        } else {
+            locator.start()
+        }
         update()
         // The glow is rendered once: now, not in the first frame of the first card or notice.
         Task {
@@ -312,6 +355,8 @@ final class IslandController {
         }
         noteStatusChanges(snapshot)
         let mode = resolveMode(snapshot)
+        // A card or a notice comes up under a dragged capsule: the drag ends where it is (the card opens from there).
+        if mode.isOpen, drag?.active == true { endDrag(quietly: true) }
         // A page lives only as long as the open island it was asked for in; so does an expanded card.
         if !mode.isOpen {
             requestedPage = nil
@@ -373,7 +418,7 @@ final class IslandController {
         guard id != presentedFlashID else { return }
         presentedFlashID = id
         flashPresentedAt = AppClock.monotonicSeconds()
-        flashRestingPointer = id == nil ? nil : NSEvent.mouseLocation
+        flashRestingPointer = id == nil ? nil : mouseLocation()
     }
 
     private func glow(for mode: IslandMode, _ snapshot: IslandSnapshot) -> IslandGlow? {
@@ -411,6 +456,9 @@ final class IslandController {
         // A file dragged over the island opens the shelf; a tile dragged out of it keeps the island open under it.
         let draggingOut = state.mode.isOpen && widgets.shelf?.store.draggingOut != nil
         let open = openState.isOpen || dragOpen || draggingOut
+        // Settings → Остров → «Где показывать»: not while an app it should not show in is in front (it retracts; a request
+        // of an agent still comes up with «Всегда показывать запросы агентов»). An island the user opened stays open.
+        if !open, !appAllowsIsland { return .hidden }
         // Settings → «Показывать запросы сразу» off: a request waits in the closed island (it pulses) until opened.
         if !model.pendingPermissions.isEmpty, settings.openOnPermission || open { return .permission }
         if let flash = model.flash, flash.id != suppressedFlashID { return .flash }
@@ -420,6 +468,15 @@ final class IslandController {
         if state.metrics.style == .notch { return .idle }
         // Settings → «Показывать без сессий»: a small pill stays on a screen without a notch.
         return settings.showWithoutSessions ? .collapsed : .hidden
+    }
+
+    /// Settings → Остров → «Где показывать»: whether the app in front lets the island show now. A permission request or a
+    /// "needs you" notice counts as the agent asking for the user («Всегда показывать запросы агентов»).
+    private var appAllowsIsland: Bool {
+        guard settings.appFilter.usesApps else { return true }
+        let notice = model.flash.map { $0.kind == .attention && $0.id != suppressedFlashID } ?? false
+        return settings.islandVisible(frontmost: frontmost.bundleID,
+                                      needsAttention: !model.pendingPermissions.isEmpty || notice)
     }
 
     /// A notice arriving while the user already has the list open is not worth covering it (the row shows
@@ -554,6 +611,8 @@ final class IslandController {
         }
         let now = AppClock.monotonicSeconds()
         if let grace, grace.until <= now { self.grace = nil }
+        // A press whose mouse-up never reached the island (the panel stopped taking the mouse) ends here.
+        if drag != nil, mouseButtons() & 1 == 0 { endDrag() }
         guard panel.isVisible, let shape = islandHitShape(), let screen = applied?.screenFrame else {
             if !panel.ignoresMouseEvents { panel.ignoresMouseEvents = true }
             pointerOnIsland = false
@@ -562,9 +621,12 @@ final class IslandController {
             openState.pointer(inside: false, held: true, now: now)
             return
         }
-        let p = NSEvent.mouseLocation
-        // On the island: its silhouette and a point more (the transparent columns under the ears are not).
-        let onIsland = shape.contains(p, slopX: IslandMotion.enterSlop, slopY: IslandMotion.enterSlop, within: screen)
+        let p = mouseLocation()
+        // On the island: its silhouette and a point more (the transparent columns under the ears are not). A dragged
+        // capsule keeps the pointer (it follows only sideways): the panel takes the mouse until the button comes up.
+        let dragging = drag?.active == true
+        let onIsland = dragging
+            || shape.contains(p, slopX: IslandMotion.enterSlop, slopY: IslandMotion.enterSlop, within: screen)
         // The hover state lets go a few points further out, so a pointer on the edge does not flicker. Beside a
         // real notch the zone stays tight: menu bar items sit right next to it.
         var inside = onIsland
@@ -576,12 +638,14 @@ final class IslandController {
         // Only the island itself takes the mouse: clicks, scrolls and drops in the band around it reach the apps
         // below. Nor is a drag caught that started elsewhere (its drop belongs to the app it came from), except a file
         // dragged onto the island for the shelf; a tile dragged out of the shelf is let through to the windows under
-        // the panel once it leaves the island, and taken back over it (`IslandMouseCapture`).
-        let buttonsDown = NSEvent.pressedMouseButtons != 0
-        let capture = IslandMouseCapture.takesMouse(onIsland: onIsland, buttonsDown: buttonsDown,
-                                                    ignoring: panel.ignoresMouseEvents,
-                                                    fileDragWantsDrop: widgets.shelf?.wantsDrop == true,
-                                                    shelfDragOut: widgets.shelf?.store.draggingOut != nil)
+        // the panel once it leaves the island, and taken back over it (`IslandMouseCapture`). A capsule being dragged
+        // keeps the mouse.
+        let buttonsDown = mouseButtons() != 0
+        let capture = dragging
+            || IslandMouseCapture.takesMouse(onIsland: onIsland, buttonsDown: buttonsDown,
+                                             ignoring: panel.ignoresMouseEvents,
+                                             fileDragWantsDrop: widgets.shelf?.wantsDrop == true,
+                                             shelfDragOut: widgets.shelf?.store.draggingOut != nil)
         if panel.ignoresMouseEvents == capture { panel.ignoresMouseEvents = !capture }
         pointerOnIsland = onIsland
         setPointerInside(inside)
@@ -622,24 +686,27 @@ final class IslandController {
             breathe(false)
             if state.pressed { state.setPressed(false) }
             // Recording a hotkey needs the pointer on the island (the keyboard goes back to the app now).
-            if !IslandPerf.enabled, IslandSettings.model.recorder.isRecording { IslandSettings.model.recorder.cancel() }
+            if !IslandPerf.enabled, !isolated, IslandSettings.model.recorder.isRecording { IslandSettings.model.recorder.cancel() }
             hoverSuppressedUntilExit = false
             // A pointer that left and comes back to a notice means it.
             flashRestingPointer = nil
             if state.hoveredRowKey != nil { state.hoveredRowKey = nil }
             if openState.watchesLeave {
-                exitPoint = NSEvent.mouseLocation
+                exitPoint = mouseLocation()
                 scheduleClose()
             }
         }
     }
 
-    /// The closed island grows a little under the pointer (not while something is dragged across).
-    private func breathe(_ on: Bool) {
+    /// The closed island grows a little under the pointer (not while something is dragged across). `riding`: on the
+    /// spring of the transition under way (`IslandViewState.setHovering`).
+    private func breathe(_ on: Bool, riding: Bool = false) {
         let closed = state.mode == .collapsed || state.mode == .idle
-        let want = on && closed && !hoverSuppressedUntilExit && (NSEvent.pressedMouseButtons == 0 || state.pressed)
+        // A dragged capsule stays lifted (grown, with a deeper shadow) under the held button.
+        let want = on && closed && !hoverSuppressedUntilExit
+            && (mouseButtons() == 0 || state.pressed || drag?.active == true)
         let was = state.hovering
-        state.setHovering(want)
+        state.setHovering(want, riding: riding)
         // A soft sheen crosses the island as it grows under the pointer.
         if want, !was { effects?.hoverStarted() }
     }
@@ -648,7 +715,7 @@ final class IslandController {
     /// or `maxDwell` after it entered; a sweep (even a moderate one) restarts that; never while a button
     /// is down.
     private func considerHoverOpen() {
-        guard canHoverOpen, let rest = IslandSettings.restDwell, let most = IslandSettings.maxDwell else { return }
+        guard canHoverOpen, let rest = restDwell, let most = maxDwell else { return }
         let speed = pointer.speed
         if dwellStart == nil || speed > Self.sweepSpeed {
             dwellStart = AppClock.monotonicSeconds()
@@ -663,9 +730,14 @@ final class IslandController {
 
     /// Only on the island itself: a rest in the band around it (where the hover state lingers) opens nothing.
     private var canHoverOpen: Bool {
-        (state.mode == .collapsed || state.mode == .idle) && pointerInside && pointerOnIsland && !openState.isOpen
-            && !hoverSuppressedUntilExit && NSEvent.pressedMouseButtons == 0
+        (state.mode == .collapsed || state.mode == .idle) && pointerInside && pointerOnIsland && openState.mayOpen
+            && drag == nil && !hoverSuppressedUntilExit && mouseButtons() == 0
     }
+
+    /// Settings → Остров → «Открывать при наведении»: the rest on the closed island before it opens, and the longest it
+    /// waits for a moving pointer (nil: hover never opens it, a click does).
+    private var restDwell: Double? { settings.hoverOpen.restDwell.map { max($0, 0.001) } }
+    private var maxDwell: Double? { settings.hoverOpen.maxDwell }
 
     /// A pointer faster than this is passing by, not aiming at the island (points per second).
     private static let sweepSpeed: CGFloat = 350
@@ -680,7 +752,7 @@ final class IslandController {
         if pointer.currentSpeed > Self.restingSpeed {
             // Still on the move (a sweep across the pill): wait for it to rest.
             restTask?.cancel()
-            restTask = after(IslandSettings.restDwell ?? IslandMotion.restDwell) { $0.hoverOpenNow() }
+            restTask = after(restDwell ?? IslandMotion.restDwell) { $0.hoverOpenNow() }
             return
         }
         cancelDwell()
@@ -744,7 +816,7 @@ final class IslandController {
     /// What holds the open island right now (empty: nothing), named for the log.
     private var holdReasons: [String] {
         var holds: [String] = []
-        if NSEvent.pressedMouseButtons != 0 { holds.append("mouse button") }
+        if mouseButtons() != 0 { holds.append("mouse button") }
         if menuOpen { holds.append("menu") }
         if state.mode == .permission { holds.append("permission card") }
         if dragOpen { holds.append("file drag") }
@@ -926,8 +998,14 @@ final class IslandController {
         if new.usageRefresh != old.usageRefresh { model.setUsageRefreshInterval(new.usageRefresh.seconds) }
         if new.showWithoutSessions != old.showWithoutSessions || new.openOnPermission != old.openOnPermission
             || new.widgets != old.widgets || new.usageProvider != old.usageProvider
-            || new.showsUsageRing != old.showsUsageRing {
+            || new.showsUsageRing != old.showsUsageRing || new.appFilter != old.appFilter
+            || new.chosenApps != old.chosenApps || new.alwaysShowAgentRequests != old.alwaysShowAgentRequests {
             scheduleUpdate()
+        }
+        // «Сбросить положение» (or another copy of the settings): the capsule slides to its place on this display.
+        if new.islandOffsets != old.islandOffsets, drag == nil, let applied, !IslandPerf.enabled {
+            let offset = CGFloat(new.islandOffset(forDisplay: applied.displayKey))
+            if offset != state.islandOffset { setIslandOffset(offset, spring: IslandMotion.drop, save: false) }
         }
     }
 
@@ -935,6 +1013,9 @@ final class IslandController {
         let reduce = settings.motion.reduceMotion(system: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
         if state.reduceMotion != reduce { state.reduceMotion = reduce }
     }
+
+    /// The island is open or the pointer is on it (a background update waits for neither).
+    var isInUse: Bool { openState.isOpen || pointerInside }
 
     /// Opens the island on its ⚙️ page (the menu bar's «Настройки…»).
     func showSettings() {
@@ -960,7 +1041,6 @@ final class IslandController {
     private func cycleUsage() {
         var usages = widgets.usage.usages
         if usages.isEmpty, model.usage.agentUsage.hasData { usages = [model.usage.agentUsage] }
-        let store = SettingsStore.shared
         store.values.usageProvider = UsageSelection.next(after: store.values.usageProvider, usages: usages)
     }
 
@@ -984,6 +1064,70 @@ final class IslandController {
     func perfSetStyle(_ style: IslandStyle) {
         forcedStyle = style
         _ = locator.evaluate()
+    }
+
+    /// The benchmark: the capsule's place on this screen (not saved; clamped to it: -2000 is the left edge), settling
+    /// there as after a drag.
+    func perfSetOffset(_ x: CGFloat) {
+        guard state.metrics.detached else { return }
+        let range = IslandLayout.shiftRange(width: state.closedRestWidth, metrics: state.metrics)
+        setIslandOffset(min(max(x.rounded(), range.lowerBound), range.upperBound), spring: IslandMotion.drop, save: false)
+    }
+
+    /// The benchmark: the closed «Островок» dragged `dx` points sideways over `duration` seconds (pointer events at
+    /// 120 Hz, eased like a hand), then let go — through the same path as a real drag.
+    func perfDrag(by dx: CGFloat, duration: Double = 0.45) {
+        guard state.metrics.detached, !state.mode.isOpen, state.mode != .hidden, drag == nil else { return }
+        drag = IslandDrag(pressX: 0, start: state.targetShift(),
+                          range: IslandLayout.shiftRange(width: state.closedRestWidth, metrics: state.metrics))
+        state.setPressed(true)
+        let start = CACurrentMediaTime()
+        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] timer in
+            MainActor.assumeIsolated {
+                guard let self else { return timer.invalidate() }
+                let p = min(1, (CACurrentMediaTime() - start) / duration)
+                let eased = p * p * (3 - 2 * p)
+                _ = self.dragClosedIsland(.moved(NSPoint(x: dx * eased, y: 0), dy: 0))
+                guard p >= 1 else { return }
+                timer.invalidate()
+                _ = self.dragClosedIsland(.ended)
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    /// The benchmark: the open island grabbed where its capsule sits and pulled `dx` points sideways over `duration`
+    /// seconds (pointer events at 120 Hz from the grab threshold on, eased like a hand), then let go — through the same
+    /// path as a real grab (`beginGrab`): it folds back into its capsule, which follows. Reported as "grab", from the fold
+    /// through the drag and the settle.
+    func perfGrab(by dx: CGFloat, duration: Double = 0.45) {
+        guard state.metrics.detached, state.mode.isOpen, state.mode != .permission, drag == nil else { return }
+        IslandPerf.shared?.renameNext = "grab"
+        IslandPerf.shared?.windowNext = 0.95
+        let first = dx < 0 ? -IslandDragMath.grabThreshold : IslandDragMath.grabThreshold
+        guard beginGrab(pressX: 0, at: NSPoint(x: first, y: 0)) else { return }
+        let start = CACurrentMediaTime()
+        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] timer in
+            MainActor.assumeIsolated {
+                guard let self else { return timer.invalidate() }
+                let p = min(1, (CACurrentMediaTime() - start) / duration)
+                let eased = p * p * (3 - 2 * p)
+                _ = self.dragClosedIsland(.moved(NSPoint(x: first + (dx - first) * eased, y: 0), dy: 0))
+                guard p >= 1 else { return }
+                timer.invalidate()
+                _ = self.dragClosedIsland(.ended)
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    /// The capsule sits aside (`perfSetOffset`).
+    var perfShifted: Bool { state.islandOffset != 0 && state.metrics.detached }
+
+    /// Where the island's center is in the panel, as a fraction of its width (the on-screen check looks there).
+    var perfIslandColumn: CGFloat {
+        guard let panel, let slider, panel.frame.width > 0 else { return 0.5 }
+        return ((slider.anchorX ?? panel.frame.width / 2) + state.targetShift()) / panel.frame.width
     }
 
     /// The stage and the panel's window, for the benchmark's on-screen check.
@@ -1011,6 +1155,46 @@ final class IslandController {
 
     /// As a pointer resting on a tab of the strip does it: its page is built ahead.
     func perfPrepareTab(_ kind: WidgetKind) { prepareTab(kind) }
+
+    // MARK: Tests (`IslandControllerTests`, on a placement of their own: `start(on:)`)
+
+    var testMode: IslandMode { state.mode }
+    var testIslandOffset: CGFloat { state.islandOffset }
+    var testOpenState: IslandOpenState { openState }
+    var testDragging: Bool { drag?.active == true }
+    /// Where the closed capsule rests on screen (its center).
+    var testCapsuleCenter: NSPoint? {
+        guard let applied else { return nil }
+        return NSPoint(x: applied.anchor.x + capsuleShift,
+                       y: applied.anchor.y - state.metrics.gap - state.metrics.barHeight / 2)
+    }
+    /// Where the island's center is drawn now (or at media time `t`), from the anchor.
+    var testPresentedShift: CGFloat? { stage?.presentedShiftNow }
+    func testPresentedShift(at t: CFTimeInterval) -> CGFloat? { stage?.presentedShift(at: t) }
+    /// A pointer event (as the tracker reports one).
+    func testPointerMoved() { pointerMoved(fromEvent: true) }
+
+    /// Takes the island off the screen and lets go of everything it watches (tests; the app's island lives as long as
+    /// the app).
+    func stop() {
+        cancelDwell()
+        cancelClose()
+        moveTask?.cancel()
+        armTask?.cancel()
+        leaveWatch?.invalidate()
+        leaveWatch = nil
+        for (center, token) in observers { center.removeObserver(token) }
+        observers.removeAll()
+        cancellables.removeAll()
+        for monitor in [scrollMonitor, clickMonitor].compactMap({ $0 }) { NSEvent.removeMonitor(monitor) }
+        scrollMonitor = nil
+        clickMonitor = nil
+        pointer.stop()
+        locator.stop()
+        frontmost.stop()
+        state.clock.setRunning(false)
+        panel?.orderOut(nil)
+    }
 
     // MARK: Tabs
 
@@ -1092,7 +1276,7 @@ final class IslandController {
     /// The pointer is on the open island's header (the tab strip).
     private func pointerOnHeader() -> Bool {
         guard let rect = islandScreenRect() else { return false }
-        let p = NSEvent.mouseLocation
+        let p = mouseLocation()
         return p.y >= rect.maxY - IslandTabs.headerBlock(state.metrics) && p.x >= rect.minX && p.x <= rect.maxX
     }
 
@@ -1106,7 +1290,9 @@ final class IslandController {
             g.height = state.metrics.barHeight
             g.top = state.metrics.gap
         }
-        return NSRect(x: placement.anchor.x - g.width / 2, y: placement.anchor.y - g.top - g.height,
+        let shift = state.mode == .hidden ? IslandLayout.shift(offset: state.islandOffset, width: g.width, metrics: state.metrics)
+            : state.targetShift()
+        return NSRect(x: placement.anchor.x + shift - g.width / 2, y: placement.anchor.y - g.top - g.height,
                       width: g.width, height: g.height)
     }
 
@@ -1142,7 +1328,251 @@ final class IslandController {
 
     private func pressClosedIsland(_ down: Bool) {
         guard !state.mode.isOpen, state.mode != .hidden else { return }
+        if down {
+            // «Островок» can be dragged sideways from here (`dragClosedIsland`); «Чёлка» stays on the notch.
+            drag = state.metrics.detached && !IslandPerf.enabled
+                ? IslandDrag(pressX: mouseLocation().x, start: state.targetShift(),
+                             range: IslandLayout.shiftRange(width: state.closedRestWidth, metrics: state.metrics))
+                : nil
+        } else if drag?.active != true {
+            drag = nil
+        }
         state.setPressed(down)
+    }
+
+    /// A plain click on the closed island: it opens.
+    private func tappedClosedIsland() {
+        drag = nil
+        guard !state.mode.isOpen, state.mode != .hidden else { return }
+        openFromClick()
+    }
+
+    // MARK: Dragging «Островок»
+
+    /// The press on the capsule moved or came up. Past its threshold sideways it is a drag: the capsule follows the
+    /// pointer's x (the whole stage moves rigidly, nothing is laid out), rubber-bands at the screen's edges, and never
+    /// opens; let go, it settles with a soft spring (onto the center when dropped near it) and its place is kept for this
+    /// display. It starts from where it is drawn: a press catches it there (even while it still settles after a drop), a
+    /// grab out of the open island lets the fold carry it on around the drag (`IslandStage.dragSlide`).
+    private func dragClosedIsland(_ event: IslandDragEvent) -> Bool {
+        switch event {
+        case .moved(let point, let dy):
+            guard var press = drag, !state.mode.isOpen, state.mode != .hidden else { return false }
+            let before = press.x
+            let wasActive = press.active
+            var drawn: (() -> CGFloat)?
+            if !grabbing, let stage { drawn = { stage.presentedShiftNow } }
+            let moved = press.pointer(x: point.x, dy: dy, drawn: drawn)
+            drag = press
+            guard press.active else { return false }
+            if !wasActive {
+                state.dragShift = press.x
+                dragBegan(at: press.x)
+            }
+            if moved {
+                IslandPerf.note("drag")
+                IslandPerf.shared?.motionCommitted()
+                state.dragShift = press.x
+                stage?.dragSlide(to: press.x)
+                if stage == nil { slider?.setFrameShift(press.x) }
+                // A light tick as it passes the center (trackpads with haptics).
+                if IslandDragMath.crossesCenter(from: before, to: press.x), press.range.contains(0) {
+                    NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+                }
+            }
+            return true
+        case .ended:
+            let wasDrag = drag?.active == true
+            endDrag()
+            return wasDrag
+        }
+    }
+
+    /// The press became a drag at `x`: nothing opens (hover, click) or closes meanwhile, and the capsule lifts a little
+    /// (the press squish gives way to the hover grow and its deeper shadow).
+    private func dragBegan(at x: CGFloat) {
+        openState.beginDrag()
+        cancelDwell()
+        cancelClose()
+        grace = nil
+        if state.pressed { state.setPressed(false) }
+        // Pressed while it still slides (settling after a drop): it stops under the pointer, where it is drawn.
+        if !grabbing { stage?.holdSlide(at: x) }
+        // Lifted while it is carried (a capsule grabbed out of the open island grows as one pressed on directly does, as
+        // part of its fold).
+        breathe(pointerInside || grabbing, riding: grabbing)
+        // Measured from here through the settle (the benchmark's drag lasts 0.45 s); a grab is measured from its fold.
+        if !grabbing { IslandPerf.shared?.transition("drag", window: 0.95) }
+    }
+
+    /// Lets go of the press. A drag settles where it was dropped (inside the screen, or on the center near it) on
+    /// `IslandMotion.drop`, and the place is kept for this display; the island opens again only after the pointer has
+    /// left it and come back.
+    private func endDrag(quietly: Bool = false) {
+        grabbing = false
+        guard let press = drag else { return }
+        drag = nil
+        guard press.active else { return }
+        openState.endDrag()
+        state.dragShift = nil
+        setIslandOffset(press.rest, spring: IslandMotion.drop, save: true)
+        hoverSuppressedUntilExit = true
+        // `quietly`: from within `update` (it re-checks the pointer itself).
+        guard !quietly else { return }
+        breathe(pointerInside)
+        pointerMoved(fromEvent: false)
+    }
+
+    /// The capsule's place on this display: the island heads there on `spring` (from wherever it is), and the place is
+    /// kept in Settings when `save` (a drag, a double click; the reset button writes the settings itself).
+    private func setIslandOffset(_ offset: CGFloat, spring: GeoSpring, save: Bool) {
+        state.islandOffset = offset
+        if let stage {
+            stage.settleSlide(spring: spring)
+        } else {
+            slider?.setFrameShift(state.targetShift())
+        }
+        guard save, !IslandPerf.enabled, let key = applied?.displayKey else { return }
+        if store.values.islandOffset(forDisplay: key) != Double(offset) {
+            store.values.setIslandOffset(Double(offset), forDisplay: key)
+        }
+    }
+
+    /// The offset Settings keep for `placement`'s display (0 for «Чёлка»: it never moves).
+    private func storedOffset(for placement: IslandPlacement) -> CGFloat {
+        guard !IslandPerf.enabled else { return state.islandOffset }
+        return CGFloat(settings.islandOffset(forDisplay: placement.displayKey))
+    }
+
+    /// The panel's own mouse events, before its views see them: a double click where the capsule sits re-centers a
+    /// capsule moved aside (`recenterOnDoubleClick`), and a clear sideways pull on an open island where its capsule sits
+    /// grabs the capsule (`grabbableOpenIsland`: the hover usually opens the island before the button goes down).
+    private func installMouseFilter() {
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .leftMouseDragged]) { [weak self] event in
+            guard let self else { return event }
+            return MainActor.assumeIsolated { self.filterMouse(event) } ? nil : event
+        }
+    }
+
+    /// Returns true when the event is swallowed (the double click's, or a grabbed capsule's drag).
+    func filterMouse(_ event: NSEvent) -> Bool {
+        guard let panel, event.windowNumber == panel.windowNumber else { return false }
+        switch event.type {
+        case .leftMouseDown:
+            grabPress = nil
+            // A grab whose mouse-up never came ends here.
+            if grabbing { endDrag() }
+            let p = mouseLocation()
+            if event.clickCount >= 2, recenterOnDoubleClick(at: p) {
+                swallowNextMouseUp = true
+                return true
+            }
+            if grabbableOpenIsland(at: p) { grabPress = p }
+            return false
+        case .leftMouseDragged:
+            let p = mouseLocation()
+            if grabbing {
+                _ = dragClosedIsland(.moved(p, dy: 0))
+                return true
+            }
+            guard let press = grabPress, IslandDragMath.grabBegins(dx: p.x - press.x, dy: p.y - press.y) else { return false }
+            grabPress = nil
+            return grabCapsule(from: press, event: event)
+        case .leftMouseUp:
+            grabPress = nil
+            if grabbing {
+                _ = dragClosedIsland(.ended)
+                return true
+            }
+            defer { swallowNextMouseUp = false }
+            return swallowNextMouseUp
+        default:
+            return false
+        }
+    }
+
+    /// Where the closed capsule sits on screen, whatever the island shows now (its strip up to the screen's top edge and a
+    /// few points around it included); nil for «Чёлка».
+    private func capsuleFootprint() -> NSRect? {
+        guard let applied, state.metrics.detached else { return nil }
+        let width = state.closedRestWidth
+        let x = applied.anchor.x + capsuleShift
+        let height = state.metrics.gap + state.metrics.barHeight
+        return NSRect(x: x - width / 2, y: applied.anchor.y - height, width: width, height: height).insetBy(dx: -4, dy: -2)
+    }
+
+    /// Where the closed capsule rests, from the anchor (its offset clamped to the screen).
+    private var capsuleShift: CGFloat {
+        IslandLayout.shift(offset: state.islandOffset, width: state.closedRestWidth, metrics: state.metrics)
+    }
+
+    /// The open island folds back into a capsule where its capsule sits: «Островок», the list, a widget's tab or the
+    /// settings (not a card or a notice), and closing leaves a capsule (not an island that retracts).
+    private var foldsIntoCapsule: Bool {
+        guard state.metrics.detached, state.mode.tab != nil || state.mode == .page(IslandSettings.pageID) else { return false }
+        return !model.sessions.isEmpty || state.snapshot.activity != nil || settings.showWithoutSessions
+    }
+
+    /// Whether a press at `p` on the open island may grab its capsule: the island was opened by the pointer (hover or
+    /// click; not pinned), it folds into a capsule, and `p` is where that capsule sits.
+    private func grabbableOpenIsland(at p: NSPoint) -> Bool {
+        guard !IslandPerf.enabled, foldsIntoCapsule, openState.opener == .hover || openState.opener == .click,
+              !openState.pinned, drag == nil, let footprint = capsuleFootprint() else { return false }
+        return footprint.contains(p)
+    }
+
+    /// The press on the open island became a pull: whatever the content started with that press lets go (a mouse-up far
+    /// outside it: a button under the pointer is released unclicked), and the capsule is grabbed (`beginGrab`). Returns
+    /// whether the grab happened.
+    private func grabCapsule(from press: NSPoint, event: NSEvent) -> Bool {
+        guard let panel else { return false }
+        if let up = NSEvent.mouseEvent(with: .leftMouseUp, location: NSPoint(x: -10_000, y: -10_000), modifierFlags: [],
+                                       timestamp: event.timestamp, windowNumber: panel.windowNumber, context: nil,
+                                       eventNumber: event.eventNumber, clickCount: 1, pressure: 0) {
+            panel.sendEvent(up)
+        }
+        return beginGrab(pressX: press.x, at: mouseLocation())
+    }
+
+    /// The open island folds back into its capsule and the capsule follows the pointer (pressed at `pressX`, now at
+    /// `point`) like a dragged one. It starts from where the capsule rests: the fold heads there on the close spring and
+    /// that motion carries on around the drag (`IslandStage.dragSlide`), so the island never jumps; the capsule meets the
+    /// pointer as the fold and the drag's lag play out.
+    private func beginGrab(pressX: CGFloat, at point: NSPoint) -> Bool {
+        cancelDwell()
+        cancelClose()
+        grace = nil
+        exitPoint = nil
+        openState.close()
+        update()
+        guard !state.mode.isOpen, state.mode != .hidden else { return false }
+        drag = IslandDrag(pressX: pressX, start: state.targetShift(),
+                          range: IslandLayout.shiftRange(width: state.closedRestWidth, metrics: state.metrics),
+                          threshold: IslandDragMath.grabThreshold)
+        grabbing = true
+        _ = dragClosedIsland(.moved(point, dy: 0))
+        return true
+    }
+
+    /// A double click where the capsule sits re-centers it when it was moved aside: closed, or with the island open over
+    /// it (the hover opens it long before a double click is done; a click on the closed capsule opens it too, and the
+    /// second click takes that back). The open island closes as the capsule slides home. Nothing for a capsule already at
+    /// the center: its double click stays two clicks. Returns whether it re-centered.
+    private func recenterOnDoubleClick(at p: NSPoint) -> Bool {
+        guard !IslandPerf.enabled, drag == nil, capsuleShift != 0, let footprint = capsuleFootprint(), footprint.contains(p)
+        else { return false }
+        let closed = state.mode == .collapsed || state.mode == .idle
+        guard closed || foldsIntoCapsule else { return false }
+        recenter()
+        return true
+    }
+
+    /// The capsule goes back to the center of this screen (a double click on it). An open island closes on the way (the
+    /// close carries it home) and opens again only once the pointer has left and come back.
+    private func recenter() {
+        state.islandOffset = 0
+        if state.mode.isOpen { closeAfterAction() }
+        setIslandOffset(0, spring: IslandMotion.drop, save: true)
     }
 
     /// A click on the closed island (or on a tab) opens it — not pinned: it closes once the pointer leaves. `remote`: the
@@ -1225,7 +1655,7 @@ final class IslandController {
     private func tapFlash(_ notice: FlashNotice) {
         guard state.mode == .flash, notice.id == presentedFlashID else { return }
         let settled = AppClock.monotonicSeconds() - flashPresentedAt >= PermissionArming.seconds
-        let p = NSEvent.mouseLocation
+        let p = mouseLocation()
         let moved = flashRestingPointer.map { abs(p.x - $0.x) > 1 || abs(p.y - $0.y) > 1 } ?? true
         guard settled || moved else { return }
         model.jump(to: notice.key)
@@ -1237,7 +1667,7 @@ final class IslandController {
     private func flashAction(_ notice: FlashNotice, _ action: FlashAction) {
         guard state.mode == .flash, notice.id == presentedFlashID else { return }
         let settled = AppClock.monotonicSeconds() - flashPresentedAt >= PermissionArming.seconds
-        let p = NSEvent.mouseLocation
+        let p = mouseLocation()
         let moved = flashRestingPointer.map { abs(p.x - $0.x) > 1 || abs(p.y - $0.y) > 1 } ?? true
         guard settled || moved else { return }
         switch action {
@@ -1267,19 +1697,34 @@ final class IslandController {
 
     // MARK: Panel geometry
 
-    private func canvasFrame(_ placement: IslandPlacement) -> NSRect {
+    /// The panel: as tall as the canvas, as wide as the screen (and at least the canvas, centered on the anchor), so a
+    /// dragged «Островок» can sit anywhere along the top without the panel ever moving or resizing on screen. It is
+    /// transparent and takes the mouse only over the island itself.
+    private func panelFrame(_ placement: IslandPlacement) -> NSRect {
         let size = IslandLayout.canvasSize(placement.metrics)
-        return NSRect(x: placement.anchor.x - size.width / 2, y: placement.anchor.y - size.height,
-                      width: size.width, height: size.height)
+        let minX = min(placement.anchor.x - size.width / 2, placement.screenFrame.minX)
+        let maxX = max(placement.anchor.x + size.width / 2, placement.screenFrame.maxX)
+        return NSRect(x: minX, y: placement.anchor.y - size.height, width: maxX - minX, height: size.height)
+    }
+
+    /// Places the panel for `placement` and the island's canvas in it (centered on the anchor, plus its slide).
+    private func placePanel(_ placement: IslandPlacement, display: Bool) {
+        guard let panel else { return }
+        let frame = panelFrame(placement)
+        slider?.canvasSize = IslandLayout.canvasSize(placement.metrics)
+        slider?.anchorX = placement.anchor.x - frame.minX
+        if panel.frame != frame { panel.setFrame(frame, display: display) }
     }
 
     /// The island's silhouette on screen, where it is heading (not where it is mid-spring).
     private func islandHitShape() -> IslandHitShape? {
         guard let applied, !moving, state.mode != .hidden else { return nil }
         let g = state.geometry
-        let rect = NSRect(x: applied.anchor.x - g.width / 2, y: applied.anchor.y - g.top - g.height,
+        let shift = state.targetShift()
+        let rect = NSRect(x: applied.anchor.x + shift - g.width / 2, y: applied.anchor.y - g.top - g.height,
                           width: g.width, height: g.height)
-        return IslandHitShape(rect: rect, geometry: g, screenTop: applied.anchor.y)
+        // The strip above a detached capsule counts as the island only at home (moved aside, it would cover menu bar items).
+        return IslandHitShape(rect: rect, geometry: g, screenTop: abs(shift) < 0.5 ? applied.anchor.y : nil)
     }
 
     private func showPanel() {
@@ -1290,9 +1735,8 @@ final class IslandController {
             adopt(fresh)
         }
         guard let applied else { return }
-        let frame = canvasFrame(applied)
-        if panel.frame != frame { panel.setFrame(frame, display: false) }
-        pointer.start()
+        placePanel(applied, display: false)
+        if !isolated { pointer.start() }
         locator.setPolling(true)
         guard !panel.isVisible else { return }
         panel.alphaValue = 1
@@ -1318,8 +1762,10 @@ final class IslandController {
         latest = next
         if !moving, let applied, applied.displayID == next.displayID, applied.anchor == next.anchor,
            applied.screenFrame == next.screenFrame, next.metrics.differsOnlyInGap(from: applied.metrics) {
-            // The same screen in the other style («Чёлка» ↔ «Островок»): the shape morphs, the panel stays.
+            // The same screen in the other style («Чёлка» ↔ «Островок»): the shape morphs, the panel stays (a dragged
+            // capsule slides back to the notch, or out to its place, on the same spring).
             self.applied = next
+            state.islandOffset = storedOffset(for: next)
             state.morph(to: next.metrics)
             pointerMoved(fromEvent: false)
             return
@@ -1350,9 +1796,10 @@ final class IslandController {
             update()
             return
         }
+        state.islandOffset = storedOffset(for: target)
         state.jump(to: target.metrics)
         applied = target
-        if let panel { panel.setFrame(canvasFrame(target), display: false) }
+        placePanel(target, display: false)
         DispatchQueue.main.async { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -1386,17 +1833,18 @@ final class IslandController {
 
     private func applyNow(_ placement: IslandPlacement) {
         adopt(placement)
-        if let panel, panel.isVisible {
-            let frame = canvasFrame(placement)
-            if panel.frame != frame { panel.setFrame(frame, display: true) }
-        }
+        if let panel, panel.isVisible { placePanel(placement, display: true) }
         update()
     }
 
     /// The panel's placement changes while it is not on screen.
     private func adopt(_ placement: IslandPlacement) {
         applied = placement
-        if state.metrics != placement.metrics { state.jump(to: placement.metrics) }
+        let offset = storedOffset(for: placement)
+        if state.metrics != placement.metrics || state.islandOffset != offset {
+            state.islandOffset = offset
+            state.jump(to: placement.metrics)
+        }
     }
 }
 

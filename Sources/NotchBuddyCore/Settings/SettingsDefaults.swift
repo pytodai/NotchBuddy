@@ -30,6 +30,14 @@ public enum SettingsKey {
     public static let islandStyleMonitors = "settings.island.style.monitors"
     /// «Ширина капсулы» of the closed «Островок», in points.
     public static let capsuleWidth = "settings.island.capsuleWidth"
+    /// The dragged «Островок»'s offset per display (`IslandDisplayKey` → points).
+    public static let islandOffsets = "settings.island.offsets"
+    /// «Где показывать»: «all» / «only» / «except», the two lists of apps ("bundle id\tname"), and «Всегда показывать
+    /// запросы агентов».
+    public static let appFilter = "settings.island.apps.filter"
+    public static let appsShownIn = "settings.island.apps.only"
+    public static let appsHiddenIn = "settings.island.apps.except"
+    public static let alwaysShowAgentRequests = "settings.island.apps.alwaysShowRequests"
     /// The former per-display styles (display UUID → «notch» / «island»), read by the migration only: a
     /// monitor whose UUID changed (another port, a dock) lost its choice.
     public static let legacyIslandStyles = "settings.island.styles"
@@ -119,6 +127,21 @@ extension NotchSettings {
             raw(SettingsKey.islandStyleMonitors, \.islandStyleMonitors),
             field(SettingsKey.capsuleWidth, \.capsuleWidth,
                   decode: { SettingsCoercion.double($0).map(NotchSettings.clampedCapsuleWidth) }, encode: { $0 }),
+            field(SettingsKey.islandOffsets, \.islandOffsets,
+                  decode: { stored in
+                      guard let map = stored as? [String: Any] else { return nil }
+                      var offsets: [String: Double] = [:]
+                      for (key, value) in map where !key.isEmpty {
+                          guard let x = SettingsCoercion.double(value).map(NotchSettings.storedOffset), x != 0 else { continue }
+                          offsets[key] = x
+                      }
+                      return offsets
+                  },
+                  encode: { $0 }),
+            raw(SettingsKey.appFilter, \.appFilter),
+            field(SettingsKey.appsShownIn, \.appsShownIn, decode: SettingsCoercion.apps, encode: { $0.map(\.stored) }),
+            field(SettingsKey.appsHiddenIn, \.appsHiddenIn, decode: SettingsCoercion.apps, encode: { $0.map(\.stored) }),
+            bool(SettingsKey.alwaysShowAgentRequests, \.alwaysShowAgentRequests),
             bool(SettingsKey.hotkeyEnabled, \.hotkeyEnabled),
             raw(SettingsKey.hotkey, \.hotkey),
             field(SettingsKey.widgets, \.widgets,
@@ -170,6 +193,13 @@ enum SettingsCoercion {
         case let s as String: return Double(s.replacingOccurrences(of: ",", with: "."))
         default: return nil
         }
+    }
+
+    /// A list of chosen apps ("bundle id\tname" each, or a bare bundle id written by hand); unreadable entries and
+    /// repeats are dropped.
+    static func apps(_ value: Any) -> [ChosenApp]? {
+        guard let list = value as? [Any] else { return nil }
+        return ChosenApp.unique(list.compactMap { ($0 as? String).flatMap(ChosenApp.init(stored:)) })
     }
 }
 

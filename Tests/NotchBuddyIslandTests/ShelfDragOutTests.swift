@@ -4,9 +4,9 @@ import SwiftUI
 import XCTest
 @testable import NotchBuddy
 
-/// Dragging a file back out of the shelf («из полки нельзя назад перетащить»): a press anywhere on a tile reaches its
-/// AppKit drag source (on the stage too), the drag carries the files, starts where the tile draws them, may be copied
-/// or moved by the receiver, and the island takes the drag only while it is over the island.
+/// Dragging a file back out of the shelf: a press anywhere on a tile reaches its AppKit drag source (on the stage too),
+/// the drag carries the files, starts where the tile draws them, may be copied or moved by the receiver, and the island
+/// takes the drag only while it is over the island.
 @MainActor
 final class ShelfDragOutTests: XCTestCase {
     private var folder: URL!

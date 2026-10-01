@@ -425,6 +425,16 @@ public struct NotchSettings: Equatable, Sendable {
     public var islandStyleMonitors = IslandStyle.notch
     /// «Ширина капсулы»: how wide the closed «Островок» is, in points (`capsuleWidthRange`). «Чёлка» ignores it.
     public var capsuleWidth = NotchSettings.defaultCapsuleWidth
+    /// «Островок» dragged sideways: its center's offset from the screen's top center, per display (`IslandDisplayKey`),
+    /// in points. A display it was never moved on is not stored (centered).
+    public var islandOffsets: [String: Double] = [:]
+    /// «Где показывать» (`IslandPlacementSettings.swift`): every app, only the chosen ones, or all but the chosen ones.
+    public var appFilter = IslandAppFilter.all
+    /// The apps of «Только в выбранных» and of «Везде, кроме выбранных» (each mode keeps its own list).
+    public var appsShownIn: [ChosenApp] = []
+    public var appsHiddenIn: [ChosenApp] = []
+    /// «Всегда показывать запросы агентов»: permission cards and "needs you" notices show even where the island hides.
+    public var alwaysShowAgentRequests = true
 
     // Hotkey (⌃⌥N out of the box)
     public var hotkeyEnabled = true

@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var socket: SocketService?
     private var island: IslandController?
     private var menuBar: MenuBarController?
+    private var updater: SparkleUpdater?
     private var instanceLock: InstanceLock?
     private var perfHarness: IslandPerfHarness?
     private var signalSources: [DispatchSourceSignal] = []
@@ -41,10 +42,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.socket = socket
         self.island = island
         if perf {
+            Log.info("updates: off in the benchmark (Sparkle \(SparkleUpdater.frameworkVersion))")
             let harness = IslandPerfHarness(model: model, island: island)
             harness.start()
             perfHarness = harness
             return
+        }
+
+        // Self-updates (Sparkle). A background download installs on its own only when the relaunch loses nothing:
+        // every session long silent, no card or notice waiting, the island closed.
+        let updates = AppUpdates.shared
+        updates.isQuiet = { [weak model, weak island] in
+            guard let model, let island else { return false }
+            return !island.isInUse && model.canRelaunchQuietly()
         }
 
         // The widgets' services and every agent's usage (Codex from its logs, Kimi when allowed, Claude from its own
@@ -64,6 +74,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menuBar = MenuBarController(model: model, hooks: hooks, socket: socket)
         self.menuBar = menuBar
         menuBar.openSettings = { [weak island] in island?.showSettings() }
+        menuBar.updates = updates
+        updates.onAttentionChange = { [weak menuBar, weak updates] in menuBar?.setUpdateBadge(updates?.needsAttention ?? false) }
+        updater = SparkleUpdater.start(configuration: updates.configuration, updates: updates)
         // Hooks installed or removed in Settings show in the menu at once.
         IslandSettings.model.hooks.onChange = { [weak menuBar] in menuBar?.refreshHookStatuses() }
 

@@ -41,7 +41,8 @@ def p90(v):
 print(tag)
 print(f"{'transition':<12}{'n':>3} | {'main fps':>8} {'worst':>8} {'p90':>8} | {'comp fps':>8} {'worst':>8} {'p90':>8} "
       f"{'srv/tr':>6} {'probe':>7} | {'latency':>7} {'stall':>7} {'work':>5} {'load':>5}")
-order = ["hover-in", "hover-out", "open", "close", "tab", "flash", "flash-out", "card", "cardAdvance", "card-out"]
+order = ["hover-in", "hover-out", "open", "close", "open-offset", "close-offset", "drag", "tab", "flash", "flash-out",
+         "card", "cardAdvance", "card-out"]
 for name in sorted(rows, key=lambda n: order.index(n) if n in order else 99):
     r = rows[name]
     n = len(r)

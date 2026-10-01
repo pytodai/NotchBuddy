@@ -20,6 +20,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var refreshAgain = false
     /// Opens the island's ⚙️ page (set by the app delegate).
     var openSettings: () -> Void = {}
+    /// Self-updates: «Проверить обновления…» in the menu (set by the app delegate).
+    var updates: AppUpdates?
 
     init(model: AppModel, hooks: HookInstallService, socket: SocketService?) {
         self.model = model
@@ -28,15 +30,44 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         super.init()
 
         if let button = statusItem.button {
-            let image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: "NotchBuddy")
-            image?.isTemplate = true
-            button.image = image
+            button.image = Self.statusImage(badge: false)
             button.toolTip = "NotchBuddy"
         }
         menu.delegate = self
         menu.autoenablesItems = false
         statusItem.menu = menu
         refreshHookStatuses()
+    }
+
+    /// A small dot on the icon while an update waits for the user.
+    func setUpdateBadge(_ on: Bool) {
+        guard let button = statusItem.button else { return }
+        button.image = Self.statusImage(badge: on)
+        button.toolTip = on ? L("NotchBuddy · есть обновление") : "NotchBuddy"
+    }
+
+    /// The menu bar icon: the template glyph, with a dot at its top right corner when `badge` is set (still a template
+    /// image, so it follows the menu bar's appearance like the system's own badges).
+    static func statusImage(badge: Bool) -> NSImage? {
+        guard let glyph = NSImage(systemSymbolName: "sparkles", accessibilityDescription: "NotchBuddy") else { return nil }
+        glyph.isTemplate = true
+        guard badge else { return glyph }
+        let dot: CGFloat = 5
+        let size = NSSize(width: glyph.size.width + 2, height: glyph.size.height + 1)
+        let image = NSImage(size: size, flipped: false) { _ in
+            let cutout = NSRect(x: size.width - dot - 1.5, y: size.height - dot - 1.5, width: dot + 3, height: dot + 3)
+            glyph.draw(in: NSRect(x: 0, y: 0, width: glyph.size.width, height: glyph.size.height))
+            // Clear a ring around the dot so it reads as separate from the glyph.
+            NSGraphicsContext.current?.compositingOperation = .clear
+            NSBezierPath(ovalIn: cutout).fill()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: cutout.insetBy(dx: 1.5, dy: 1.5)).fill()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = L("NotchBuddy · есть обновление")
+        return image
     }
 
     /// Pops the menu open (used when the user launches the app again while it's running).
@@ -102,6 +133,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(actionItem(L("Настройки…"), #selector(showSettings), key: ","))
+        if let updates { menu.addItem(updates.menuItem()) }
         menu.addItem(widgetsItem())
         menu.addItem(styleItem())
         let hotkey = SettingsStore.shared.values

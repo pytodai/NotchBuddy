@@ -2,15 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleDevelopmentRegion</key><string>ru</string>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
 	<key>CFBundleDisplayName</key><string>NotchBuddy</string>
 	<key>CFBundleName</key><string>NotchBuddy</string>
 	<key>CFBundleExecutable</key><string>NotchBuddy</string>
 	<key>CFBundleIdentifier</key><string>me.sokolov.notchbuddy</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
-	<key>CFBundleShortVersionString</key><string>0.1.0</string>
-	<key>CFBundleVersion</key><string>1</string>
+	<key>CFBundleShortVersionString</key><string>1.0.0</string>
+	<key>CFBundleVersion</key><string>100</string>
 	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>SUFeedURL</key><string>https://raw.githubusercontent.com/pytodai/NotchBuddy/main/appcast.xml</string>
+	<key>SUPublicEDKey</key><string>3J4RLyeWcsPtswxIJwsl0X7RUFxWLtLcmkQK6aerGVU=</string>
+	<key>SUEnableAutomaticChecks</key><true/>
+	<key>SUScheduledCheckInterval</key><integer>86400</integer>
+	<key>SUAllowsAutomaticUpdates</key><true/>
 	<key>LSMinimumSystemVersion</key><string>14.0</string>
 	<key>LSUIElement</key><true/>
 	<key>NSHighResolutionCapable</key><true/>

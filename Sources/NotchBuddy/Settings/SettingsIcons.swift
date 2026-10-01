@@ -3,7 +3,7 @@ import NotchBuddyCore
 
 /// The settings page's sections, in page order.
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case island, sounds, agents, usage, hotkey, widgets, appearance, language, launch, privacy, about
+    case island, sounds, agents, usage, hotkey, widgets, appearance, language, launch, updates, privacy, about
 
     var id: String { rawValue }
 
@@ -19,6 +19,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         // Both names, whatever the language: whoever cannot read the current one still finds it.
         case .language: return L("Язык · Language")
         case .launch: return L("Запуск при входе")
+        case .updates: return L("Обновления")
         case .privacy: return L("Приватность и логи")
         case .about: return L("О NotchBuddy")
         }
@@ -39,6 +40,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .appearance: return Color(white: 0.24)
         case .language: return Color(red: 0.23, green: 0.5, blue: 0.62)
         case .launch: return Color(red: 0.24, green: 0.6, blue: 0.33)
+        case .updates: return Color(red: 0.24, green: 0.45, blue: 0.7)
         case .privacy: return Color(red: 0.36, green: 0.43, blue: 0.54)
         case .about: return Color(white: 0.34)
         }
@@ -55,6 +57,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .appearance: return "paintpalette.fill"
         case .language: return "globe"
         case .launch: return "power"
+        case .updates: return "arrow.triangle.2.circlepath"
         case .privacy: return "lock.shield.fill"
         case .about: return "sparkles"
         }

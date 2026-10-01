@@ -189,6 +189,34 @@ enum IslandLayout {
         }
     }
 
+    // MARK: Sideways («Островок» dragged)
+
+    /// A dragged «Островок» keeps this far from the screen's left and right edges (open or closed).
+    static let edgeMargin: CGFloat = 10
+
+    /// Where the center of a silhouette `width` wide may sit, relative to the anchor (the screen's top center), so the
+    /// whole shape stays `edgeMargin` inside the screen. «Чёлка» never moves (0…0). A shape wider than the screen
+    /// allows stays centered on the screen.
+    static func shiftRange(width: CGFloat, metrics: IslandMetrics) -> ClosedRange<CGFloat> {
+        guard metrics.detached else { return 0...0 }
+        let half = width / 2 + edgeMargin
+        let low = -(metrics.roomLeft - half), high = metrics.roomRight - half
+        guard low <= high else {
+            let middle = ((high + low) / 2).rounded()
+            return middle...middle
+        }
+        return low.rounded(.up)...high.rounded(.down)
+    }
+
+    /// The island's horizontal place for a silhouette `width` wide: the user's `offset` (where the capsule was dragged),
+    /// clamped to the screen (`shiftRange`). An open island therefore opens from wherever the capsule is, and stays on
+    /// screen near an edge. Whole points.
+    static func shift(offset: CGFloat, width: CGFloat, metrics: IslandMetrics) -> CGFloat {
+        guard metrics.detached, offset != 0 else { return 0 }
+        let range = shiftRange(width: width, metrics: metrics)
+        return min(max(offset.rounded(), range.lowerBound), range.upperBound)
+    }
+
     /// Offset of closed content inside a grown (hovered / pressed) silhouette, so it stays centered.
     static func closedContentOffset(mode: IslandMode, metrics: IslandMetrics, geometry: IslandGeometry) -> CGFloat {
         guard !mode.isOpen, mode != .hidden else { return 0 }

@@ -103,6 +103,67 @@ final class IslandContainerView: NSView {
     }
 }
 
+/// The island's horizontal place in the panel. The panel spans its screen (and at least the canvas), so a dragged
+/// «Островок» can sit anywhere along the top; the island itself is drawn on a fixed canvas (`IslandLayout.canvasSize`),
+/// `content`, whose frame is centered on the anchor plus `frameShift` (where the island is heading: AppKit hit-tests
+/// there). While it slides, this view's `sublayerTransform` carries the difference between where the island is drawn
+/// and that frame (baked by `IslandStage`: the render server plays it), so the whole island moves rigidly at 60 fps and
+/// nothing is laid out again.
+final class IslandSlideView: NSView {
+    let content: NSView
+    /// The canvas the island is drawn on (zero: the whole view).
+    var canvasSize: CGSize = .zero {
+        didSet { if canvasSize != oldValue { place() } }
+    }
+    /// The anchor's x in this view: the screen's top center, or the camera housing's (nil: the middle).
+    var anchorX: CGFloat? {
+        didSet { if anchorX != oldValue { place() } }
+    }
+    /// Where the canvas' center sits relative to the anchor (whole points).
+    private(set) var frameShift: CGFloat = 0
+
+    init(content: NSView) {
+        self.content = content
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.actions = IslandStage.noActions
+        addSubview(content)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override var isFlipped: Bool { true }
+
+    override func layout() {
+        super.layout()
+        place()
+    }
+
+    /// Moves the canvas' frame to `shift` from the anchor (no animation: the caller bakes the visible motion).
+    func setFrameShift(_ shift: CGFloat) {
+        guard shift != frameShift else { return }
+        frameShift = shift
+        place()
+    }
+
+    /// The canvas' frame in this view.
+    var canvasFrame: CGRect {
+        let size = canvasSize == .zero ? bounds.size : canvasSize
+        let center = (anchorX ?? bounds.width / 2) + frameShift
+        return CGRect(x: (center - size.width / 2).rounded(), y: 0, width: size.width, height: size.height)
+    }
+
+    private func place() {
+        guard content.superview === self else { return }
+        let frame = canvasFrame
+        guard content.frame != frame else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        content.frame = frame
+        CATransaction.commit()
+    }
+}
+
 /// Hosting view that takes the first click even though its window is never key,
 /// so buttons respond immediately without activating NotchBuddy.
 final class IslandHostingView<Content: View>: NSHostingView<Content> {

@@ -225,8 +225,6 @@ extension HookInstallService {
             let temp = dir.appendingPathComponent(".\(destination.lastPathComponent).\(UUID().uuidString)")
             defer { try? fm.removeItem(at: temp) }
             try fm.copyItem(at: source, to: temp)
-            // A quarantined helper would be blocked by Gatekeeper when an agent spawns it.
-            removexattr(temp.path, "com.apple.quarantine", 0)
             let srcAttrs = try fm.attributesOfItem(atPath: source.path)
             var attrs: [FileAttributeKey: Any] = [.posixPermissions: 0o755]
             if let mtime = srcAttrs[.modificationDate] { attrs[.modificationDate] = mtime }

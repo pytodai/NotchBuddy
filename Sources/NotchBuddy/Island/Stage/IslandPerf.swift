@@ -60,10 +60,14 @@ final class IslandPerf {
     /// reported (marked `~`).
     /// The next transition is reported under this name (the on-screen check's opening, not a regular one).
     var renameNext: String?
+    /// …and measured this long (a grab: its fold, the drag and the settle).
+    var windowNext: TimeInterval?
 
     func transition(_ name: String, window: TimeInterval = 0.5) {
         let name = renameNext ?? name
+        let window = windowNext ?? window
         renameNext = nil
+        windowNext = nil
         let now = CACurrentMediaTime()
         if let current { finish(interrupted: now < current.end) }
         current = Measurement(name: name, start: now, end: now + window * IslandMotion.slowmo)
@@ -332,8 +336,9 @@ private final class BackgroundSampler: NSObject, @unchecked Sendable {
 
 /// `NOTCHBUDDY_PERF=1` only: a benchmark script drives the real island through its transitions with fake
 /// sessions by posting the distributed notification `me.sokolov.notchbuddy.perf` with `userInfo["action"]` =
-/// `open` | `close` | `flash` | `card` | `cardAdvance` | `hover` (and the helpers `seed`, `dismiss`,
-/// `clearCards`, `mark`, `style notch|island`, `quit`). `NotchBuddy --perf-send <action> [text]` posts one and exits.
+/// `open` | `close` | `flash` | `card` | `cardAdvance` | `hover` | `drag <dx>` | `grab <dx>` (and the helpers `seed`, `dismiss`,
+/// `clearCards`, `mark`, `style notch|island`, `offset <x>`, `quit`). `NotchBuddy --perf-send <action> [text]` posts one
+/// and exits.
 enum IslandPerfTrigger {
     static let notification = Notification.Name("me.sokolov.notchbuddy.perf")
     static let sendFlag = "--perf-send"
@@ -381,12 +386,19 @@ final class IslandPerfHarness {
         case "seed": seed()
         case "open": island.perfSetOpen(true)
         case "hoverOpen":
-            // As a resting pointer does it: the hover grow, then the list ~0.12 s later.
+            // As a resting pointer does it: the hover grow, then the list ~0.12 s later. From a capsule moved aside
+            // (`offset`) it is reported as "open-offset" (the list slides inward as it grows).
             island.perfHover(true)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
-                MainActor.assumeIsolated { self?.island.perfSetOpen(true) }
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    if self.island.perfShifted { IslandPerf.shared?.renameNext = "open-offset" }
+                    self.island.perfSetOpen(true)
+                }
             }
-        case "close": island.perfSetOpen(false)
+        case "close":
+            if island.perfShifted { IslandPerf.shared?.renameNext = "close-offset" }
+            island.perfSetOpen(false)
         case "hover": island.perfToggleHover()
         case "flash": finish(Self.claude)
         case "dismiss": model.dismissFlash()
@@ -414,6 +426,15 @@ final class IslandPerfHarness {
         case "style":
             // «Чёлка» (notch) or «Островок» (island) on the screen the bench runs on; the user's settings stay as they are.
             island.perfSetStyle(IslandStyle(rawValue: text) ?? .notch)
+        case "offset":
+            // «Островок» moved sideways (points from the center; nothing is saved).
+            island.perfSetOffset(CGFloat(Double(text) ?? 0))
+        case "drag":
+            // The closed capsule dragged sideways by this many points (and let go).
+            island.perfDrag(by: CGFloat(Double(text) ?? 300))
+        case "grab":
+            // The open island grabbed where its capsule sits and pulled sideways by this many points (and let go).
+            island.perfGrab(by: CGFloat(Double(text) ?? 300))
         case "mark": IslandPerf.shared?.mark(text)
         case "verify": verify(block: Double(text) ?? 0.3)
         case "quit": NSApp.terminate(nil)
@@ -431,7 +452,8 @@ final class IslandPerfHarness {
         IslandPerf.shared?.renameNext = "verify-open"
         island.perfSetOpen(true)
         let start = CACurrentMediaTime()
-        let shots = ScreenShots(window: window, until: start + 0.6, points: Double(island.perfCanvasHeight))
+        let shots = ScreenShots(window: window, until: start + 0.6, points: Double(island.perfCanvasHeight),
+                                column: Double(island.perfIslandColumn))
         shots.run()
         let blockEnd = CACurrentMediaTime() + block
         while CACurrentMediaTime() < blockEnd {}
@@ -546,14 +568,17 @@ private final class ScreenShots: @unchecked Sendable {
     private let until: CFTimeInterval
     /// The panel's height in points (the picture is in pixels).
     private let points: Double
+    /// Where the island's center is across the picture (0…1: the panel spans the screen, the island may be moved).
+    private let column: Double
     private let lock = NSLock()
     private var samples: [Sample] = []
     private var done = false
 
-    init(window: UInt32, until: CFTimeInterval, points: Double) {
+    init(window: UInt32, until: CFTimeInterval, points: Double, column: Double = 0.5) {
         self.window = window
         self.until = until
         self.points = points
+        self.column = min(max(column, 0), 1)
     }
 
     func run() {
@@ -564,7 +589,7 @@ private final class ScreenShots: @unchecked Sendable {
                 // kCGWindowListOptionIncludingWindow, kCGWindowImageBoundsIgnoreFraming
                 guard let image = create(.null, 1 << 3, window, 1 << 0)?.takeRetainedValue() else { break }
                 let after = CACurrentMediaTime()
-                if let pixels = Self.islandHeight(image) {
+                if let pixels = Self.islandHeight(image, column: column) {
                     let height = pixels * points / Double(max(1, image.height))
                     lock.withLock { samples.append(Sample(time: (before + after) / 2, height: height)) }
                 }
@@ -577,15 +602,16 @@ private final class ScreenShots: @unchecked Sendable {
 
     func results() -> [Sample] { lock.withLock { samples } }
 
-    /// The lowest opaque row in the image's center column (the canvas is transparent around the island).
-    private static func islandHeight(_ image: CGImage) -> Double? {
+    /// The lowest opaque row in the image's column at `column` (0…1; the canvas is transparent around the island).
+    private static func islandHeight(_ image: CGImage, column: Double) -> Double? {
         let width = image.width, height = image.height
         guard width > 0, height > 0,
               let context = CGContext(data: nil, width: 1, height: height, bitsPerComponent: 8, bytesPerRow: 4,
                                       space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        // Draw so that the image's center column lands in the 1-pixel-wide context.
-        context.draw(image, in: CGRect(x: -width / 2, y: 0, width: width, height: height))
+        // Draw so that the island's center column lands in the 1-pixel-wide context.
+        let x = Int((Double(width) * column).rounded())
+        context.draw(image, in: CGRect(x: -x, y: 0, width: width, height: height))
         guard let data = context.data else { return nil }
         let pixels = data.bindMemory(to: UInt8.self, capacity: 4 * height)
         // A bitmap context keeps its top row first: the island hangs from row 0 (or floats a little below it); find its

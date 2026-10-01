@@ -19,3 +19,13 @@ xcuserdata/
 
 # Promo master (GitHub Release asset, not in git)
 docs/media/*4k*
+
+# Signing keys and secrets (Sparkle's EdDSA key, certificates, notary keys) never belong in the repository
+*.key
+*private*key*
+*ed25519*
+sparkle_*key*
+*.p8
+*.p12
+.env
+.env.*

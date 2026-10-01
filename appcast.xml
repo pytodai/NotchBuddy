@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>Notchbuddy</title>
+    <link>https://github.com/pytodai/NotchBuddy/releases</link>
+    <description>Notchbuddy updates</description>
+    <language>en</language>
+    <item>
+      <title>Version 1.0.0</title>
+      <pubDate>Thu, 01 Oct 2026 19:16:15 +0000</pubDate>
+      <sparkle:version>100</sparkle:version>
+      <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description sparkle:format="markdown"><![CDATA[## What's Changed
+
+* Your Claude Code, Codex and Kimi Code sessions in the notch: which one is working, which one needs you and which one is done
+* Approve or deny permission requests right from the island, with the full command, path or diff in front of you
+* A Done card with the agent's last answer when it finishes
+* 5-hour and weekly usage limits for Claude, Codex and Kimi
+* An animated pixel mascot for each agent
+* Notch or floating island; the island's width is adjustable and you can drag it sideways along the top edge
+* Show the island in every app, only in the apps you choose, or everywhere except them
+* File shelf: drop files on the notch and drag them back out when you need them
+* Optional widgets: music, calendar, timer and system
+* English and Russian
+* Automatic updates
+
+**Full Changelog**: https://github.com/pytodai/NotchBuddy/commits/v1.0]]></description>
+      <sparkle:fullReleaseNotesLink>https://github.com/pytodai/NotchBuddy/releases/tag/v1.0</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/pytodai/NotchBuddy/releases/download/v1.0/Notchbuddy-1.0.0.zip" length="16520862" type="application/octet-stream" sparkle:edSignature="Hg9JxD0LRAstgB3lnjSnpUccG4mI19OvxIIMERWOSDkIty+ThZXbv6He7f85feIG4cYXV7RfJOLBqlmHm3irDQ==" />
+    </item>
+  </channel>
+</rss>

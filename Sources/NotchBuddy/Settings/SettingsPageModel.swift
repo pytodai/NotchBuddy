@@ -14,6 +14,7 @@ final class SettingsPageModel: ObservableObject {
     let maintenance: SettingsMaintenance
     let recorder: HotkeyRecorder
     let hotkey: GlobalHotkey
+    let updates: AppUpdates
     let previewer = SoundPreviewer()
 
     /// The open section (one at a time).
@@ -23,18 +24,22 @@ final class SettingsPageModel: ObservableObject {
     @Published private(set) var screens: [ScreenOption]
     /// Bumped when a section opens (its icon plays).
     @Published private(set) var iconBounce: [SettingsSection: Int] = [:]
+    /// Static renders only: «Добавить приложение…» shown open with these apps.
+    @Published var previewPicking: [PickableApp]?
 
     /// Reads the system's Reduce Motion (injected by previews).
     var systemReduceMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
     init(store: SettingsStore, hooks: HookSettingsModel, maintenance: SettingsMaintenance,
-         recorder: HotkeyRecorder? = nil, hotkey: GlobalHotkey? = nil, screens: [ScreenOption]? = nil) {
+         recorder: HotkeyRecorder? = nil, hotkey: GlobalHotkey? = nil, screens: [ScreenOption]? = nil,
+         updates: AppUpdates? = nil) {
         let recorder = recorder ?? HotkeyRecorder()
         self.store = store
         self.hooks = hooks
         self.maintenance = maintenance
         self.recorder = recorder
         self.hotkey = hotkey ?? .shared
+        self.updates = updates ?? .shared
         self.screens = screens ?? SettingsScreens.options()
         recorder.onCapture = { [weak store] combo in
             store?.values.hotkey = combo
@@ -51,6 +56,7 @@ final class SettingsPageModel: ObservableObject {
         hooks.refresh()
         maintenance.refresh()
         store.refreshLaunchAtLogin()
+        updates.sync()
         let fresh = SettingsScreens.options()
         if fresh != screens { screens = fresh }
     }

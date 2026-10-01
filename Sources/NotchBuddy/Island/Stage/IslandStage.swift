@@ -53,6 +53,18 @@ protocol IslandRenderer: AnyObject {
 final class IslandStage: IslandRenderer {
     unowned let state: IslandViewState
     let view = IslandStageView()
+    /// The panel's content: `view` (the canvas) placed along the top of the screen, at the island's horizontal place
+    /// (`slide`). Made on first use; renderers that put `view` straight into a panel of their own have none (their
+    /// island stays centered).
+    var slider: IslandSlideView {
+        if let madeSlider { return madeSlider }
+        let slider = IslandSlideView(content: view)
+        madeSlider = slider
+        return slider
+    }
+    private var madeSlider: IslandSlideView?
+    /// The slider, when it hosts the canvas.
+    private var activeSlider: IslandSlideView? { madeSlider.flatMap { view.superview === $0 ? $0 : nil } }
     let timeline = IslandTimeline()
     /// Media time (film renders step it).
     var clock: () -> CFTimeInterval = CACurrentMediaTime
@@ -79,6 +91,10 @@ final class IslandStage: IslandRenderer {
     /// The closed island's offset in a grown (hovered, pressed) silhouette: it follows the target geometry on the
     /// geometry's spring (not the shape's height mid-flight: a closing list does not push the pill down).
     private var contentOffset = SpringTrack.rest([0])
+    /// The island's horizontal place: its center's offset from the anchor (`IslandViewState.targetShift`: where a dragged
+    /// «Островок» sits, an open island kept on screen). It moves the whole canvas rigidly: `slider` puts the canvas'
+    /// frame at the target and bakes the difference into its `sublayerTransform`; a drag sets it directly (`dragSlide`).
+    private(set) var slide = SpringTrack.rest([0])
     private var heroes: [SessionKey: HeroMark] = [:]
     /// The panel is on screen and not occluded: the flying mascot's frames play.
     private var windowVisible = true
@@ -544,8 +560,13 @@ final class IslandStage: IslandRenderer {
         if let kind, !reduce { startPulse(kind, at: now) }
         geometry = geometry.retargeted(to: state.geometry.vector, spring: spring.spring, at: now)
         retargetOffset(spring: spring, at: now)
+        let before = slide
+        let heroOffsets = heroes.mapValues { before.value(at: now)[0] + ($0.pin?(now) ?? 0) }
+        retargetSlide(spring: spring.spring, at: now)
+        pinPages(at: now, before: before)
         for id in currentIDs { if let page = pages[id] { syncModel(page) } }
         updateHeroes(at: now)
+        pinHeroes(at: now, before: before, offsets: heroOffsets)
         rebake(from: now)
         if state.mode == .hidden { scheduleRetracted(from: now) }
         IslandPerf.shared?.motionCommitted()
@@ -557,6 +578,11 @@ final class IslandStage: IslandRenderer {
         let target = state.geometry.vector
         if target != geometry.to { geometry = geometry.retargeted(to: target, spring: spring.spring, at: now) }
         retargetOffset(spring: spring, at: now)
+        let before = slide.to
+        retargetSlide(spring: spring.spring, at: now)
+        // Heading somewhere else without a content swap (a style switch, «Ширина капсулы»): the pages ride with the island
+        // again, catching up on the same spring.
+        if slide.to != before { unpinPages(at: now, spring: spring.spring) }
         for id in currentIDs { if let page = pages[id] { syncModel(page) } }
         updateHeroes(at: now)
         rebake(from: now)
@@ -593,6 +619,241 @@ final class IslandStage: IslandRenderer {
         guard contentOffset.to != [offset] else { return }
         contentOffset = contentOffset.retargeted(to: [offset], spring: spring.spring, at: now)
     }
+
+    // MARK: Sideways
+
+    /// The island heads for its place (`IslandViewState.targetShift`) on `spring`, from where it is and with its speed
+    /// (an island opening near an edge slides inward on the open spring as it grows). Not during a drag: the drag moves
+    /// it (`dragSlide`), and a hover grow or a data change under the dragged capsule must not.
+    private func retargetSlide(spring: Spring, at now: CFTimeInterval) {
+        guard state.dragShift == nil else { return }
+        let target = [Double(state.targetShift())]
+        guard slide.to != target else { return }
+        slide = slide.retargeted(to: target, spring: spring, at: now)
+    }
+
+    /// A drag: the island is drawn at `x` (the canvas' frame stays where it was until the drag ends). At rest that is one
+    /// transform, nothing baked or laid out. Still on its way somewhere (an open island grabbed while it folds back into
+    /// its capsule), the rest of that motion carries on around `x`: the slide's track is moved rigidly, so its remainder
+    /// (and its speed) stays, and is baked until it settles. So the island is drawn where it was at the grab, and it
+    /// converges on the pointer on the fold's own spring: nothing jumps.
+    func dragSlide(to x: CGFloat) {
+        let now = clock()
+        let before = slide
+        let settle = before.settleTime(epsilon: 0.05)
+        let moving = before.isMoving && now < settle
+        if moving {
+            var moved = before
+            let dx = Double(x) - before.to[0]
+            moved.from[0] += dx
+            moved.to[0] += dx
+            slide = moved
+        } else {
+            slide = .rest([Double(x)], at: now)
+        }
+        let track = slide
+        // A page still leaving (the list folding into a grabbed capsule) fades where it is on screen.
+        for page in pages.values where page.pin != nil && page.phase == .leaving {
+            let screen = page.pinScreen ?? before.value(at: now)[0] + (page.pin?(now) ?? 0)
+            page.pinScreen = screen
+            page.pin = { t in screen - track.value(at: t)[0] }
+            page.pinUntil = .infinity
+        }
+        guard moving else {
+            // The rest ride with the drag.
+            for page in pages.values where page.pin != nil && page.phase == .leaving {
+                guard let layer = page.shift.layer, let screen = page.pinScreen else { continue }
+                timeline.set(layer, "sublayerTransform", key: "pin",
+                             IslandTimeline.transform(CATransform3DMakeTranslation(CGFloat(screen) - x, 0, 0)))
+            }
+            if pages.values.contains(where: { $0.pin != nil && $0.phase != .leaving }) || heroes.values.contains(where: { $0.pin != nil }) {
+                unpinPages(at: now, spring: IslandMotion.press.spring, now: true, keepLeaving: true)
+            }
+            guard let slider = activeSlider, let layer = slider.layer else { return }
+            timeline.set(layer, "sublayerTransform", key: "slide",
+                         IslandTimeline.transform(CATransform3DMakeTranslation(x - slider.frameShift, 0, 0)))
+            return
+        }
+        // The pins of the content swap the remainder belongs to hold the place the island heads for (the incoming
+        // capsule's content: `x`, moved along with it) and those pins only cancel the remainder, which moving the track
+        // keeps: they stay as they are.
+        bakeSlide(from: now, until: settle, movesFrame: false)
+        bakePins(from: now, until: settle)
+    }
+
+    /// A press caught the island where it is drawn, `x` (a capsule pressed again while it still settles after a drop): it
+    /// stops there, and a drag carries it from there.
+    func holdSlide(at x: CGFloat) {
+        let now = clock()
+        guard slide.to != [Double(x)] || (slide.isMoving && now < slide.settleTime(epsilon: 0.05)) else { return }
+        slide = .rest([Double(x)], at: now)
+        guard let slider = activeSlider, let layer = slider.layer else { return }
+        timeline.set(layer, "sublayerTransform", key: "slide",
+                     IslandTimeline.transform(CATransform3DMakeTranslation(x - slider.frameShift, 0, 0)))
+    }
+
+    /// The island settles at its place (`targetShift`) from wherever it is now, on `spring` (a dragged capsule let go, a
+    /// position reset, a double click). Only the slide is baked. Already heading there (a double click that closed the
+    /// open island: the close carries it home), it keeps its motion and its pages keep their place.
+    func settleSlide(spring: GeoSpring) {
+        let now = clock()
+        let target = [Double(state.targetShift())]
+        if slide.to != target {
+            slide = slide.retargeted(to: target, spring: (reduce ? IslandMotion.reduced : spring).spring, at: now)
+            // The whole island moves (an open one too, after «Сбросить положение»): its pages ride along.
+            unpinPages(at: now, spring: (reduce ? IslandMotion.reduced : spring).spring)
+        }
+        var end = slide.settleTime(epsilon: 0.05)
+        for page in pages.values where page.pin != nil && page.pinUntil.isFinite { end = max(end, page.pinUntil) }
+        bakeSlide(from: now, until: end)
+        bakePins(from: now, until: end)
+        IslandPerf.shared?.motionCommitted()
+    }
+
+    /// A content swap that moves the island sideways (an open or close near the screen's edge: the open island is kept
+    /// on screen) must not move the content: the incoming pages hold the place the island is heading for, the leaving
+    /// ones the place they were at, and the silhouette, sliding and growing, uncovers them where they are (as it does at
+    /// the center). Each page's pin cancels the slide until it settles.
+    private func pinPages(at now: CFTimeInterval, before: SpringTrack) {
+        let track = slide
+        let target = track.to[0]
+        let settle = track.settleTime(epsilon: 0.05)
+        for page in pages.values where !page.id.isNotchWing {
+            if page.phase == .leaving {
+                let screen = before.value(at: now)[0] + (page.pin?(now) ?? 0)
+                page.pin = { t in screen - track.value(at: t)[0] }
+                page.pinScreen = screen
+                page.pinUntil = .infinity
+            } else if currentIDs.contains(page.id), page.revealStart == now {
+                guard before.to != track.to || before.isMoving else {
+                    clearPin(page)
+                    continue
+                }
+                page.pin = { t in target - track.value(at: t)[0] }
+                page.pinScreen = nil
+                page.pinUntil = settle
+            } else if page.pin != nil, before.to != track.to {
+                unpin(page, at: now, spring: Spring(response: track.response, dampingRatio: track.damping))
+            }
+        }
+    }
+
+    /// The flying marks of a content swap that slides the island hold to the screen like the pages: one flying on to its
+    /// slot starts from where it is on screen (its spring takes the difference) and lands where its slot will be; one
+    /// leaving fades where it is. `offsets`: each mark's distance from its stage coordinates to the screen before.
+    private func pinHeroes(at now: CFTimeInterval, before: SpringTrack, offsets: [SessionKey: Double]) {
+        let track = slide
+        let target = track.to[0]
+        let moving = before.to != track.to || before.isMoving
+        for (key, hero) in heroes {
+            let offset = offsets[key] ?? before.value(at: now)[0]
+            guard moving else {
+                if hero.pin != nil { hero.move(by: offset - track.value(at: now)[0], at: now) }
+                hero.pin = nil
+                continue
+            }
+            if hero.leaving {
+                hero.pin = { t in offset - track.value(at: t)[0] }
+                hero.pinUntil = .infinity
+            } else {
+                // Its screen position stays continuous: the spring starts from where the mark is drawn (one that only
+                // appears now fades in at its slot).
+                let appears = hero.track.start == now && !hero.track.isMoving
+                if !appears { hero.move(by: offset - target, at: now) }
+                hero.pin = { t in target - track.value(at: t)[0] }
+                hero.pinUntil = track.settleTime(epsilon: 0.05)
+            }
+        }
+    }
+
+    /// The pinned pages let go of their place smoothly (their offset springs to 0 from where it is, with its speed), or at
+    /// once (`now`: a drag takes the capsule as it is).
+    private func unpinPages(at now: CFTimeInterval, spring: Spring, now immediately: Bool = false, keepLeaving: Bool = false) {
+        for page in pages.values where page.pin != nil && !(keepLeaving && page.phase == .leaving) {
+            if immediately {
+                clearPin(page)
+            } else {
+                unpin(page, at: now, spring: spring)
+            }
+        }
+        for hero in heroes.values {
+            guard let pin = hero.pin else { continue }
+            let value = pin(now)
+            let speed = (pin(now + 0.002) - value) / 0.002
+            if immediately || (abs(value) < 0.25 && abs(speed) < 1) {
+                // Folded into its own spring (its position stays where it is drawn).
+                hero.move(by: value, at: now)
+                hero.pin = nil
+                continue
+            }
+            let back = SpringTrack(from: [value], to: [0], velocity: [speed * IslandMotion.slowmo],
+                                   response: spring.response, damping: spring.dampingRatio, start: now)
+            hero.pin = { t in back.value(at: t)[0] }
+            hero.pinUntil = back.settleTime(epsilon: 0.05)
+        }
+    }
+
+    private func unpin(_ page: IslandPage, at now: CFTimeInterval, spring: Spring) {
+        guard let pin = page.pin else { return }
+        let value = pin(now)
+        let speed = (pin(now + 0.002) - value) / 0.002
+        guard abs(value) > 0.25 || abs(speed) > 1 else {
+            clearPin(page)
+            return
+        }
+        let track = SpringTrack(from: [value], to: [0], velocity: [speed * IslandMotion.slowmo], response: spring.response,
+                                damping: spring.dampingRatio, start: now)
+        page.pin = { t in track.value(at: t)[0] }
+        page.pinScreen = nil
+        page.pinUntil = track.settleTime(epsilon: 0.05)
+    }
+
+    /// The page rides with the island again (no offset left on its `shift`).
+    private func clearPin(_ page: IslandPage) {
+        let had = page.pin != nil
+        page.pin = nil
+        page.pinScreen = nil
+        guard had || page.shift.layer?.animation(forKey: "pin") != nil, let layer = page.shift.layer else { return }
+        timeline.set(layer, "sublayerTransform", key: "pin", CATransform3DIdentity)
+    }
+
+    /// Bakes every pin from `now` (pins that are over go).
+    private func bakePins(from now: CFTimeInterval, until end: CFTimeInterval) {
+        for page in pages.values {
+            guard let pin = page.pin, let layer = page.shift.layer else { continue }
+            if page.pinUntil < now {
+                clearPin(page)
+                continue
+            }
+            let until = page.pinUntil
+            timeline.run(layer, "sublayerTransform", key: "pin", from: now, until: max(end, now + 1.0 / 60)) { t in
+                // Settled: exactly 0 (a fraction of a point would blur the text).
+                IslandTimeline.transform(CATransform3DMakeTranslation(t >= until ? 0 : CGFloat(pin(t)), 0, 0))
+            }
+        }
+    }
+
+    /// The canvas' frame goes to where the island is heading (AppKit hit-tests there), and the slider's transform
+    /// carries the difference until it gets there: both in this one transaction, so nothing jumps.
+    /// `movesFrame` false: a drag (the frame stays where it was until the drag ends).
+    private func bakeSlide(from now: CFTimeInterval, until end: CFTimeInterval, movesFrame: Bool = true) {
+        guard let slider = activeSlider, let layer = slider.layer else { return }
+        if movesFrame { slider.setFrameShift(CGFloat(slide.to[0])) }
+        let track = slide
+        let frameShift = slider.frameShift
+        // Settled, exactly on the frame (a fraction of a point off would blur the island's text).
+        let settle = track.settleTime(epsilon: 0.05)
+        timeline.run(layer, "sublayerTransform", key: "slide", from: now, until: max(end, settle, now + 1.0 / 60)) { t in
+            let x = t >= settle ? track.to[0] : track.value(at: t)[0]
+            return IslandTimeline.transform(CATransform3DMakeTranslation(CGFloat(x) - frameShift, 0, 0))
+        }
+    }
+
+    /// Where the island's center is drawn at media time `t`, from the anchor.
+    func presentedShift(at t: CFTimeInterval) -> CGFloat { CGFloat(slide.value(at: t)[0]) }
+
+    /// Where the island's center is drawn now, from the anchor (a press starts its drag from there).
+    var presentedShiftNow: CGFloat { presentedShift(at: clock()) }
 
     func pressChanged() {
         let now = clock()
@@ -652,6 +913,7 @@ final class IslandStage: IslandRenderer {
         contentOffset = .rest([0])
         let now = clock()
         geometry = .rest(state.geometry.vector, at: now)
+        slide = .rest([Double(state.targetShift())], at: now)
         lastSize = .zero
         view.needsLayout = true
         rebake(from: now)
@@ -792,8 +1054,13 @@ final class IslandStage: IslandRenderer {
         if let pulse { end = max(end, pulse.end) }
         end = max(end, press.settleTime(epsilon: 0.0005))
         end = max(end, contentOffset.settleTime(epsilon: 0.05))
+        end = max(end, slide.settleTime(epsilon: 0.05))
+        for page in pages.values where page.pin != nil && page.pinUntil.isFinite { end = max(end, page.pinUntil) }
+        for hero in heroes.values where hero.pin != nil && hero.pinUntil.isFinite { end = max(end, hero.pinUntil) }
         for hero in heroes.values where !hero.leaving { end = max(end, hero.track.settleTime()) }
         end = max(end, now + 1.0 / 60)
+        bakeSlide(from: now, until: end)
+        bakePins(from: now, until: end)
         let motion = SurfaceMotion(geometry: geometry, pulse: pulse, press: press, offset: contentOffset,
                                    canvasWidth: canvas.width, natural: state.contentSize(.closed).width,
                                    fitActive: state.closedFit && !reduce, notch: state.metrics.style == .notch,
@@ -844,10 +1111,15 @@ final class IslandStage: IslandRenderer {
         }
         // The flying marks: their spring, held inside the silhouette's body on the way.
         for hero in heroes.values {
+            // A pin that has settled is 0 from then on.
+            if hero.pin != nil, hero.pinUntil < now { hero.pin = nil }
             let track = hero.track
             let flies = hero.flies
+            let pin = hero.pin
+            let pinUntil = hero.pinUntil
             timeline.run(hero.layer, "position", from: now, until: end) { t in
-                let rect = CGRect(vector: track.value(at: t))
+                var rect = CGRect(vector: track.value(at: t))
+                if let pin, t < pinUntil { rect.origin.x += CGFloat(pin(t)) }
                 let fit = motion.fit(t)
                 let x = HeroPlacement.center(rect, midX: width / 2, inset: fit.inset, room: flies ? fit.room : nil)
                 return IslandTimeline.point(CGPoint(x: x, y: rect.midY))
@@ -917,6 +1189,9 @@ final class IslandStage: IslandRenderer {
 }
 
 extension IslandPageID {
+    /// A notch wing (its `shift` follows its edge of the silhouette).
+    var isNotchWing: Bool { self == .closedLeft || self == .closedRight }
+
     var isCard: Bool {
         if case .card = self { return true }
         return false
@@ -997,6 +1272,9 @@ final class HeroMark {
     var track: SpringTrack
     var flies = false
     var leaving = false
+    /// Like a page's (`IslandPage.pin`): it holds its place on screen while the island slides in a content swap.
+    var pin: ((CFTimeInterval) -> Double)?
+    var pinUntil: CFTimeInterval = 0
     private(set) var mascot: MascotState?
     private var running = false
     /// Films: when the shown state began (media time) and whether it opened with its intro (`filmFrame(at:)`).
@@ -1011,6 +1289,14 @@ final class HeroMark {
         layer.opacity = 0
         layer.bounds = CGRect(origin: .zero, size: rect.size)
         layer.position = CGPoint(x: rect.midX, y: rect.midY)
+    }
+
+    /// Its spring, from `now`, starts `dx` further along x (the stage coordinates it is drawn in moved by -dx): it keeps
+    /// its target and its speed.
+    func move(by dx: Double, at now: CFTimeInterval) {
+        guard dx != 0 else { return }
+        track = track.retargeted(to: track.to, response: track.response, damping: track.damping, at: now)
+        track.from[0] += dx
     }
 
     /// Plays `state` (a change of state plays its intro; the first one only when `fresh`), or holds its still frame
@@ -1088,11 +1374,14 @@ final class IslandPageReceiver: IslandContentReceiver {
 // MARK: - Stage view
 
 /// The panel's island view: lays out the stage and takes the closed island's clicks (a press squishes it, a click
-/// opens the list, not pinned); open content takes its own (each page once it is in and interactive).
+/// opens the list, not pinned; a press that travels sideways drags «Островок», `IslandDrag`); open content takes its
+/// own (each page once it is in and interactive).
 final class IslandStageView: IslandFlippedView {
     weak var stage: IslandStage?
     var onLayout: () -> Void = {}
     private var downAt: NSPoint?
+    /// The press became a drag: its mouse-up is no click.
+    private var dragging = false
 
     private var occlusionObserver: NSObjectProtocol?
 
@@ -1145,12 +1434,25 @@ final class IslandStageView: IslandFlippedView {
     override func mouseDown(with event: NSEvent) {
         guard closed, let state = stage?.state else { return }
         downAt = event.locationInWindow
+        dragging = false
         state.actions.pressClosedIsland(true)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let start = downAt, let state = stage?.state, let window else { return }
+        let p = event.locationInWindow
+        if state.actions.dragClosedIsland(.moved(window.convertPoint(toScreen: p), dy: p.y - start.y)) { dragging = true }
     }
 
     override func mouseUp(with event: NSEvent) {
         guard let start = downAt, let state = stage?.state else { return }
         downAt = nil
+        if dragging {
+            // Let go of a dragged capsule: it settles; nothing opens.
+            dragging = false
+            _ = state.actions.dragClosedIsland(.ended)
+            return
+        }
         let p = event.locationInWindow
         if hypot(p.x - start.x, p.y - start.y) < 8, closed {
             if onUsageRing(convert(p, from: nil), state: state) {

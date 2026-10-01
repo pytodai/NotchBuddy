@@ -27,6 +27,7 @@ struct SettingsPage: View {
     @ObservedObject private var hooks: HookSettingsModel
     @ObservedObject private var maintenance: SettingsMaintenance
     @ObservedObject private var hotkey: GlobalHotkey
+    @ObservedObject private var updates: AppUpdates
 
     @Environment(\.islandStaticRender) private var staticRender
     @State private var contentHeight: CGFloat = 0
@@ -55,6 +56,7 @@ struct SettingsPage: View {
         hooks = model.hooks
         maintenance = model.maintenance
         hotkey = model.hotkey
+        updates = model.updates
     }
 
     var headerHeight: CGFloat { metrics.style == .notch ? metrics.barHeight : 48 }
@@ -215,7 +217,7 @@ struct SettingsPage: View {
     @ViewBuilder
     private func sectionContent(_ section: SettingsSection) -> some View {
         switch section {
-        case .island: IslandSettingsSection(store: store, screens: model.screens)
+        case .island: IslandSettingsSection(store: store, screens: model.screens, previewPicking: model.previewPicking)
         case .sounds: SoundSettingsSection(model: model, store: store, previewer: model.previewer)
         case .agents: AgentSettingsSection(hooks: hooks)
         case .usage: UsageSettingsSection(store: store)
@@ -224,6 +226,7 @@ struct SettingsPage: View {
         case .appearance: AppearanceSettingsSection(store: store, systemReduce: model.systemReduceMotion())
         case .language: LanguageSettingsSection(store: store)
         case .launch: EmptyView()
+        case .updates: UpdatesSettingsSection(updates: updates)
         case .privacy: PrivacySettingsSection(store: store, maintenance: maintenance)
         case .about: AboutSettingsSection()
         }
@@ -301,6 +304,8 @@ struct SettingsPage: View {
             case .requiresApproval: return L("Нужно разрешение в Объектах входа")
             case .unavailable: return L("Только для NotchBuddy.app")
             }
+        case .updates:
+            return UpdatesSettingsSection.summary(updates)
         case .privacy:
             guard let summary = maintenance.backups else { return L("Без телеметрии") }
             let backups = summary.snapshots == 0 ? L("копий нет") : BackupsMaintenance.describe(summary)
@@ -313,6 +318,7 @@ struct SettingsPage: View {
     private func summaryTone(_ section: SettingsSection) -> Color? {
         switch section {
         case .launch where store.launchAtLogin == .requiresApproval: return SettingsPalette.warning
+        case .updates where updates.needsAttention: return SettingsPalette.success
         case .hotkey:
             if store.values.hotkeyEnabled, case .taken = hotkey.status { return SettingsPalette.warning }
             return nil

@@ -392,6 +392,80 @@ the body takes their room), `crown` (convex top corners) = `bottom`; hidden, it 
   resizes; on a notched screen the metrics' layout changes and the island retracts and emerges as for a screen move.
 - Benchmark: `scripts/perf-bench.sh --style island` (the dev instance only, `--perf-send style island`).
 
+### Sideways: a dragged «Островок»
+
+A «Островок» can be dragged along the top edge of its screen (horizontally only).
+
+- **Panel.** As tall as the canvas and as wide as its screen (and at least the canvas), so the island can sit anywhere
+  along the top without the panel moving or resizing (`IslandController.panelFrame`); still transparent and click-through
+  except over the island. Its content is `IslandSlideView`, which places the fixed canvas (`IslandStage.view`) centered
+  on the anchor plus `frameShift`.
+- **Slide.** `IslandStage.slide` is one more spring track: the island's center offset from the anchor
+  (`IslandViewState.targetShift`: the drag position while dragging, else the stored offset clamped so the target
+  silhouette stays `IslandLayout.edgeMargin` inside the screen, `IslandLayout.shiftRange`; 0 for «Чёлка»). It moves the
+  whole canvas rigidly: on every commit the canvas' AppKit frame jumps to the target (hit tests land there) and the
+  slider's `sublayerTransform` carries `slide(t) − target`, baked like any track (render server, one transaction, exactly
+  0 once settled so nothing rests on a fraction of a point). Retargets keep their speed like the shape's.
+- **Drag.** `IslandStageView.mouseDragged` → `IslandController.dragClosedIsland` → `IslandDrag` (pure math in
+  `IslandDragMath`, tested): 4 pt sideways turns a press into a drag; the capsule leaves its place at zero speed and
+  catches up with the pointer within ~30 pt (no jump), follows it 1:1, rubber-bands past the margin (≤ 8 pt), and each
+  mouse event is one `dragSlide` (a transform, nothing baked or laid out). Let go, it settles on `IslandMotion.drop`
+  (0.40/0.78) inside the screen, onto the center within 24 pt (a haptic tick when it crosses the center). The capsule
+  lifts while dragged (the press squish gives way to the hover grow); `IslandOpenState.beginDrag` keeps hover and clicks
+  from opening or pinning it; after the drop it opens only once the pointer has left and come back. A drag starts from
+  where the island is drawn: pressed again while it still settles after a drop, the capsule is caught there
+  (`IslandStage.holdSlide`) and stays under the pointer.
+- **Grab out of the open island.** The hover opens the island ~0.1 s after the pointer rests, so re-dragging a capsule
+  usually starts on the open island. A press on an open island (hover- or click-opened, not pinned; list / widget tab /
+  settings) where its capsule sits (`capsuleFootprint`) grabs the capsule after a clear pull, `IslandDragMath.grabThreshold`
+  = 12 pt and more sideways than up or down (above the closed capsule's 8 pt click slop: a sloppy click on a tab or
+  ⚙ 🔊 📌 there stays a click; the footprint covers the tab strip at the left edge and the buttons at the right).
+  `beginGrab`: the content's press is released (a mouse-up far outside), the island closes (the fold heads for the
+  capsule on the close spring) and the drag starts from where the capsule rests with the 12 pt threshold's lag. The fold
+  is not cut short: `dragSlide` moves the slide's track rigidly while it is still moving (its remainder and speed stay,
+  baked until it settles; the content swap's pins only cancel that remainder, so the leaving list still fades where it
+  was and the capsule's content sits at the drag's place), so the island is drawn where it was at the grab and converges
+  on the pointer as the fold plays out; its lift rides the fold's spring (`IslandViewState.setHovering(riding:)`).
+  While a drag runs nothing else retargets the slide (`retargetSlide` waits for `dragShift` to clear).
+- **Double click.** On the capsule's footprint, in either state (`IslandController.recenterOnDoubleClick`, from the
+  panel's mouse filter, `clickCount ≥ 2`): a capsule moved aside goes back to the center and its place is kept; an
+  island open over it (the hover opened it before the double click was done, or the first click did) closes as the
+  capsule slides home (the close carries it there; `settleSlide` keeps a slide already heading home) and opens again only
+  once the pointer has left and come back. The second press and its mouse-up are swallowed. A capsule already at the
+  center ignores it (its double click stays two clicks: no open/close blip). Settings → Остров → «Сбросить положение»
+  re-centers it on every screen.
+- **Open from an offset.** The open island is clamped with its own width, so near an edge it opens inward. Its content
+  must not travel with the slide: in a content swap that moves the slide (`IslandStage.pinPages`) incoming pages hold the
+  place the island is heading for and leaving ones the place they were at (a pin on the page's `shift` cancels the slide
+  until it settles); the flying mascot is pinned the same way (`pinHeroes`, its spring takes the difference). So the
+  silhouette, sliding and growing with its outer edge held still, uncovers the list where it lands, exactly as at the
+  center. A slide outside a content swap (a drag, a reset, a style switch) carries everything rigidly.
+- **Kept per display** in `NotchSettings.islandOffsets`, keyed by `IslandDisplayKey` ("builtin", else vendor-model-serial:
+  a monitor keeps its place on another port or dock), whole points, centered not stored. Used by placement, hit testing
+  and click-through (`islandHitShape`: the strip above the capsule counts only at the center, where it covers no menu bar
+  item), the shelf's drag detector, the open island and «Ширина капсулы» (a wider capsule is clamped again).
+- **Films / tests / bench.** `NOTCHBUDDY_FILM_SETS=island NOTCHBUDDY_FILMS=capsule-left,capsule-center,capsule-right,
+  drag-edge,drag-snap,drag-catch,open-from-left,open-from-right,close-to-left,grab-left NotchBuddy --render-perf <dir>`
+  (screen-wide panel; the continuity check also watches the silhouette's edges sideways); `IslandDragTests`,
+  `IslandSlideTests`, `IslandControllerTests` (the controller on a placement of its own, `start(on:)`: hover-open at
+  «Быстро», double click, grab threshold, no jump at the grab); `scripts/perf-bench.sh --drag` ("drag", "open-offset",
+  "close-offset", "grab": the hover-opened island grabbed at the left edge and pulled 360 pt).
+
+### Where the island shows (per app)
+
+Settings → Остров → «Где показывать»: «Во всех приложениях» (default) / «Только в выбранных» / «Везде, кроме
+выбранных», each mode with its own list of apps (bundle id + name; `NotchSettings.appsShownIn` / `appsHiddenIn`), and
+«Всегда показывать запросы агентов» (default on). The decision is pure (`IslandAppVisibility.isVisible`, tested): an empty
+list restricts nothing, an unknown app shows it, a pending permission request or a "needs you" notice shows it with the
+switch on. `FrontmostAppWatcher` follows activation, the menu bar's owner and Space changes (NotchBuddy itself and agent
+apps never count: the last regular app stays), debounced 150 ms, so ⌘Tab through apps hides or shows the island once.
+`IslandController.resolveMode` returns `.hidden` when the app does not allow it and the island is not open: it retracts
+on the `hide` spring and the panel is ordered out (no window catches clicks); it comes back with the appear motion. An
+island opened by hover, click, hotkey or «Настройки…» stays open in any app, so the settings can always be
+reached. Sounds are unchanged (Settings → Звуки). «Добавить приложение…» offers the running regular apps as icons and
+«Другое…» (an `NSOpenPanel` on /Applications; NotchBuddy comes forward for it, hands the front back and reopens the
+settings with the apps added). Renders: `--render-settings` → `state-show-in-*`, `state-position`.
+
 ## Motion rules
 
 - Only the silhouette's shape moves, hanging from the top edge of a fixed canvas (or floating `gap` below it, «Островок»);

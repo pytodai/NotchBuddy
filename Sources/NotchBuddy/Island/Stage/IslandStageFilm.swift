@@ -47,6 +47,18 @@ enum IslandStageFilm {
             }
             set.close()
             IslandLayout.capsuleWidth = CGFloat(NotchSettings.defaultCapsuleWidth)
+            // «Островок» dragged sideways: on a panel as wide as the screen, as the app has it.
+            guard metrics.detached else { continue }
+            let wide = FilmSet(metrics: metrics, panelWidth: metrics.screenWidth)
+            for film in FilmSet.sidewaysFilms(metrics) where only == nil || only!.contains(film.name) {
+                let (image, problems) = wide.shoot(film)
+                for problem in problems {
+                    FileHandle.standardError.write(Data("film-\(film.name)-\(suffix): \(problem)\n".utf8))
+                }
+                failures += problems.count
+                failures += write(image, to: directory.appendingPathComponent("film-\(film.name)-\(suffix).png")) ? 0 : 1
+            }
+            wide.close()
         }
         return failures == 0 ? 0 : 1
     }
@@ -88,6 +100,8 @@ struct StageFilm {
 final class FilmSet {
     let metrics: IslandMetrics
     let fakes: StageFakes
+    /// The panel's width (default: the canvas'; the sideways films take the screen's, as the app does).
+    let panelWidth: CGFloat?
     private(set) var state: IslandViewState
     private(set) var stage: IslandStage
     private var panel: IslandPanel
@@ -95,13 +109,14 @@ final class FilmSet {
     private var now: CFTimeInterval = 1000
     private var pending: [(at: CFTimeInterval, body: @MainActor () -> Void)] = []
 
-    init(metrics: IslandMetrics) {
+    init(metrics: IslandMetrics, panelWidth: CGFloat? = nil) {
         self.metrics = metrics
+        self.panelWidth = panelWidth
         fakes = StageFakes(now: Date())
         state = IslandViewState()
         stage = IslandStage(state: state)
         panel = IslandPanel()
-        container = IslandContainerView(host: stage.view)
+        container = IslandContainerView(host: stage.slider)
         configure()
     }
 
@@ -116,8 +131,10 @@ final class FilmSet {
         state.jump(to: metrics)
         state.reduceMotion = ProcessInfo.processInfo.environment["NOTCHBUDDY_FILM_REDUCE"] == "1"
         let canvas = IslandLayout.canvasSize(metrics)
+        stage.slider.canvasSize = canvas
         panel.contentView = container
-        panel.setFrame(NSRect(x: -40_000, y: -40_000, width: canvas.width, height: canvas.height), display: false)
+        panel.setFrame(NSRect(x: -40_000, y: -40_000, width: max(canvas.width, panelWidth ?? 0), height: canvas.height),
+                       display: false)
         panel.ignoresMouseEvents = true
         panel.orderFrontRegardless()
         container.layoutSubtreeIfNeeded()
@@ -129,7 +146,7 @@ final class FilmSet {
         state = IslandViewState()
         stage = IslandStage(state: state)
         panel = IslandPanel()
-        container = IslandContainerView(host: stage.view)
+        container = IslandContainerView(host: stage.slider)
         pending = []
         configure()
     }
@@ -227,6 +244,147 @@ final class FilmSet {
         }
     }
 
+    /// «Островок» dragged sideways (on a screen-wide panel): the capsule resting at the left, the center and the right,
+    /// a drag that rubber-bands at the left edge and is let go (it springs back inside), a drag let go near the center
+    /// (the magnetic snap) and the capsule pressed again while it still settles (it is caught where it is drawn), the
+    /// list opening from a capsule at either edge (it slides inward as it grows, so the open island stays on screen) and
+    /// closing to it, and the open island at the left edge grabbed where its capsule sits (it folds back into the
+    /// capsule, which follows the pointer: the fold carries on around the drag, nothing jumps).
+    static func sidewaysFilms(_ metrics: IslandMetrics) -> [StageFilm] {
+        let range = IslandLayout.shiftRange(width: IslandLayout.capsuleWidth, metrics: metrics)
+        func rest(_ x: CGFloat) -> (IslandViewState, StageFakes) -> Void {
+            { s, f in
+                s.islandOffset = x
+                s.setContent(.collapsed, snapshot: f.trio)
+            }
+        }
+        /// A hand's drag from `from` to `to` over `duration`, sampled every 1/60 s, then let go.
+        func drag(from: CGFloat, to: CGFloat, duration: Double) -> [(Double, (IslandViewState, StageFakes, IslandStage) -> Void)] {
+            var press = IslandDrag(pressX: 0, start: from, range: range)
+            var steps: [(Double, (IslandViewState, StageFakes, IslandStage) -> Void)] = []
+            let count = Int(duration * 60)
+            for i in 1...count {
+                let p = Double(i) / Double(count)
+                let eased = p * p * (3 - 2 * p)
+                _ = press.pointer(x: (to - from) * CGFloat(eased), dy: 0)
+                let x = press.x
+                steps.append((Double(i) / 60, { s, _, stage in
+                    s.dragShift = x
+                    stage.dragSlide(to: x)
+                }))
+            }
+            let rest = press.rest
+            steps.append((duration + 1.0 / 60, { s, _, stage in
+                s.dragShift = nil
+                s.islandOffset = rest
+                stage.settleSlide(spring: IslandMotion.drop)
+            }))
+            return steps
+        }
+        typealias Step = (Double, (IslandViewState, StageFakes, IslandStage) -> Void)
+        /// The press, as `IslandController.dragClosedIsland` keeps it.
+        final class Hand { var press: IslandDrag? }
+        /// The pointer travels from `a` to `b` (from where it went down) over `duration` from `t0`, eased like a hand,
+        /// sampled every 1/60 s: as the controller follows it. `catches`: a press on the capsule (it starts from where the
+        /// capsule is drawn, `IslandStage.holdSlide`); else a grab (the fold carries on around the drag).
+        func move(_ hand: Hand, to px: CGFloat, catches: Bool) -> (IslandViewState, StageFakes, IslandStage) -> Void {
+            { s, _, stage in
+                guard var press = hand.press else { return }
+                let wasActive = press.active
+                let moved = press.pointer(x: px, dy: 0, drawn: catches ? { stage.presentedShiftNow } : nil)
+                hand.press = press
+                guard press.active else { return }
+                if !wasActive {
+                    s.dragShift = press.x
+                    if catches { stage.holdSlide(at: press.x) }
+                    s.setHovering(true, riding: !catches)
+                }
+                if moved {
+                    s.dragShift = press.x
+                    stage.dragSlide(to: press.x)
+                }
+            }
+        }
+        func pull(_ hand: Hand, from a: CGFloat, to b: CGFloat, at t0: Double, duration: Double, catches: Bool) -> [Step] {
+            let count = max(1, Int((duration * 60).rounded()))
+            return (1...count).map { i in
+                let p = Double(i) / Double(count)
+                return (t0 + Double(i) / 60, move(hand, to: a + (b - a) * CGFloat(p * p * (3 - 2 * p)), catches: catches))
+            }
+        }
+        /// Let go at `t`: it settles where it rests.
+        func drop(_ hand: Hand, at t: Double) -> Step {
+            (t, { s, _, stage in
+                guard let press = hand.press, press.active else { return }
+                hand.press = nil
+                s.dragShift = nil
+                s.islandOffset = press.rest
+                stage.settleSlide(spring: IslandMotion.drop)
+            })
+        }
+        let catchHand = Hand()
+        let grabHand = Hand()
+        let grabStart = IslandDragMath.grabThreshold
+        let edgeTimes = [0, 0.1, 0.2, 0.3, 0.38, 0.45, 0.5, 0.55, 0.6, 0.7, 0.85]
+        return [
+            StageFilm(name: "capsule-left", title: "Островок у левого края", times: [0],
+                      setup: rest(range.lowerBound), change: { _, _, _ in }, captureHeight: 72),
+            StageFilm(name: "capsule-center", title: "Островок по центру", times: [0],
+                      setup: rest(0), change: { _, _, _ in }, captureHeight: 72),
+            StageFilm(name: "capsule-right", title: "Островок у правого края", times: [0],
+                      setup: rest(range.upperBound), change: { _, _, _ in }, captureHeight: 72),
+            StageFilm(name: "drag-edge", title: "Тянем влево за край: резинка, отпустили — пружина внутрь",
+                      times: edgeTimes, setup: rest(range.lowerBound + 120), change: { _, _, _ in },
+                      later: drag(from: range.lowerBound + 120, to: range.lowerBound - 80, duration: 0.4),
+                      captureHeight: 72),
+            StageFilm(name: "drag-snap", title: "Отпустили в 18 пт от центра: магнит к центру",
+                      times: edgeTimes, setup: rest(240), change: { _, _, _ in },
+                      later: drag(from: 240, to: 18, duration: 0.4), captureHeight: 72),
+            StageFilm(name: "drag-catch", title: "Отпустили у центра и сразу схватили снова: капсула остаётся под курсором",
+                      times: [0, 0.15, 0.3, 0.33, 0.36, 0.4, 0.45, 0.5, 0.6, 0.75, 0.9, 1.1],
+                      setup: rest(240), change: { _, _, _ in catchHand.press = nil },
+                      later: drag(from: 240, to: 18, duration: 0.3) + [
+                          // Pressed again 50 ms into the settle (it is still on its way to the center), and pulled right.
+                          (0.37, { s, _, _ in
+                              catchHand.press = IslandDrag(pressX: 0, start: s.targetShift(),
+                                                           range: IslandLayout.shiftRange(width: s.closedRestWidth, metrics: s.metrics))
+                          }),
+                      ] + pull(catchHand, from: 0, to: 200, at: 0.37, duration: 0.35, catches: true) + [drop(catchHand, at: 0.74)],
+                      captureHeight: 72),
+            StageFilm(name: "open-from-left", title: "Открытие из капсулы у левого края: список въезжает внутрь экрана",
+                      setup: rest(range.lowerBound), change: { s, f, _ in s.setContent(.expanded, snapshot: f.trio) },
+                      captureHeight: 420),
+            StageFilm(name: "open-from-right", title: "Открытие из капсулы у правого края",
+                      setup: rest(range.upperBound), change: { s, f, _ in s.setContent(.expanded, snapshot: f.trio) },
+                      captureHeight: 420),
+            StageFilm(name: "close-to-left", title: "Закрытие: список → капсула у левого края",
+                      setup: { s, f in
+                          s.islandOffset = range.lowerBound
+                          s.setContent(.expanded, snapshot: f.trio)
+                      },
+                      change: { s, f, _ in s.setContent(.collapsed, snapshot: f.trio) }, captureHeight: 420),
+            StageFilm(name: "grab-left",
+                      title: "Открыт наведением у левого края, схватили там, где капсула: сворачивается в неё, она едет за курсором",
+                      times: [0, 0.033, 0.066, 0.1, 0.15, 0.2, 0.3, 0.45, 0.7],
+                      setup: { s, f in
+                          s.islandOffset = range.lowerBound
+                          s.setContent(.expanded, snapshot: f.trio)
+                      },
+                      change: { s, f, stage in
+                          // `IslandController.beginGrab`: the island folds back (the close), the capsule is grabbed where it
+                          // rests and pulled from the grab threshold on.
+                          s.setContent(.collapsed, snapshot: f.trio)
+                          grabHand.press = IslandDrag(pressX: 0, start: s.targetShift(),
+                                                      range: IslandLayout.shiftRange(width: s.closedRestWidth, metrics: s.metrics),
+                                                      threshold: IslandDragMath.grabThreshold)
+                          move(grabHand, to: grabStart, catches: false)(s, f, stage)
+                      },
+                      later: pull(grabHand, from: grabStart, to: grabStart + 320, at: 0, duration: 0.45, catches: false)
+                          + [drop(grabHand, at: 0.45 + 1.0 / 60)],
+                      captureHeight: 420),
+        ]
+    }
+
     /// Films `film`: a row of frames, and the continuity problems found.
     func shoot(_ film: StageFilm) -> (CGImage?, [String]) {
         reset()
@@ -236,8 +394,10 @@ final class FilmSet {
         film.change(state, fakes, stage)
         var laters = film.later.sorted { $0.0 < $1.0 }
         var problems: [String] = []
-        // Continuity: the silhouette's presented geometry, sampled at 120 Hz, never jumps.
+        // Continuity: the silhouette's presented geometry and its edges on screen (a dragged «Островок» slides), sampled
+        // at 120 Hz, never jump.
         var previous = stage.presentedGeometry(at: t0)
+        var previousShift = stage.presentedShift(at: t0)
         var sampleTime = t0
         let end = t0 + (film.times.last ?? 0.7) * IslandMotion.slowmo
         var checkEnd = end
@@ -250,10 +410,18 @@ final class FilmSet {
                 checkEnd = max(checkEnd, now + 0.3)
             }
             let g = stage.presentedGeometry(at: sampleTime)
+            let shift = stage.presentedShift(at: sampleTime)
             let jump = max(abs(g.width - previous.width), abs(g.height - previous.height))
-            // A spring moves at most ~25 pt per 1/120 s at these sizes; more is a discontinuity.
+            let left = abs((shift - g.width / 2) - (previousShift - previous.width / 2))
+            let right = abs((shift + g.width / 2) - (previousShift + previous.width / 2))
+            // A spring moves at most ~25 pt per 1/120 s at these sizes (a hand's drag less); more is a discontinuity.
             if jump > 30 { problems.append(String(format: "silhouette jumps %.0f pt at %.0f ms", jump, (sampleTime - t0) * 1000)) }
+            if max(left, right) > 30 {
+                problems.append(String(format: "silhouette's edge jumps %.0f pt sideways at %.0f ms", max(left, right),
+                                       (sampleTime - t0) * 1000))
+            }
             previous = g
+            previousShift = shift
         }
         // Draw.
         reset()
@@ -275,14 +443,15 @@ final class FilmSet {
                 next.1(state, fakes, stage)
             }
             advance(to: start + t * IslandMotion.slowmo)
-            stage.debug("frame \(Int(t * 1000)) ms: \(stage.presentedGeometry(at: now))")
+            stage.debug("frame \(Int(t * 1000)) ms: \(stage.presentedGeometry(at: now)) shift \(stage.presentedShift(at: now))")
             if let image = capture(height: height) {
-                frames.append(StageFilmArt.frame(image, metrics: metrics, label: "\(Int((t * 1000).rounded())) мс"))
+                frames.append(StageFilmArt.frame(image, metrics: metrics, points: container.bounds.width,
+                                                 label: "\(Int((t * 1000).rounded())) мс"))
             }
         }
         let header = IslandPreviewRenderer.image(
             Text(verbatim: film.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.white.opacity(0.85)))
-        let columns = min(7, frames.count)
+        let columns = min(panelWidth == nil ? 7 : 3, frames.count)
         return (IslandPreviewRenderer.stitch(frames, columns: columns, header: header), problems)
     }
 
@@ -301,11 +470,11 @@ final class FilmSet {
 enum StageFilmArt {
     private static var backdrops: [String: CGImage] = [:]
 
-    static func frame(_ island: CGImage, metrics: IslandMetrics, label: String) -> CGImage {
+    static func frame(_ island: CGImage, metrics: IslandMetrics, points: CGFloat? = nil, label: String) -> CGImage {
         let width = island.width, height = island.height
         // The capture's own scale (1× or 2×, whatever screen the offscreen panel counts as on): the backdrop and the
         // camera housing are drawn at it, so the housing is exactly the notch the island was laid out around.
-        let scale = max(1, (CGFloat(width) / IslandLayout.canvasSize(metrics).width).rounded())
+        let scale = max(1, (CGFloat(width) / (points ?? IslandLayout.canvasSize(metrics).width)).rounded())
         let key = "\(metrics.style)-\(width)x\(height)"
         let backdrop = backdrops[key] ?? {
             let size = CGSize(width: CGFloat(width) / scale, height: CGFloat(height) / scale)

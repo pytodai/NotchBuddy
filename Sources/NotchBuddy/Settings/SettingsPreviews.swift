@@ -110,6 +110,45 @@ enum SettingsPreviewRenderer {
             }
         }
 
+        // 4b. Settings → Остров: «Где показывать» (the apps of «Везде, кроме выбранных», one not installed; an empty «Только
+        // в выбранных»; «Добавить приложение…» open) and «Положение» (the capsule moved aside), at the island card's end.
+        do {
+            func islandEnd(_ name: String, _ configure: (SettingsPageModel) -> Void) {
+                let model = makeModel(defaults: defaults)
+                configure(model)
+                model.expanded = .island
+                let (natural, viewport) = measure(model, metrics: floating)
+                let bottom = SectionFrameCollector.shared.frames[.island]?.maxY ?? natural
+                emit(name, shot(model, metrics: floating, scroll: min(max(0, bottom - viewport + 8), max(0, natural - viewport))))
+            }
+            let keynote = ChosenApp(bundleID: "com.apple.iWork.Keynote", name: "Keynote")
+            let quickTime = ChosenApp(bundleID: "com.apple.QuickTimePlayerX", name: "QuickTime Player")
+            let game = ChosenApp(bundleID: "com.example.retired-game", name: "Old Racer")
+            islandEnd("state-show-in-except") { model in
+                model.store.values.appFilter = .except
+                model.store.values.appsHiddenIn = [keynote, quickTime, game]
+            }
+            islandEnd("state-show-in-only-empty") { model in
+                model.store.values.appFilter = .only
+            }
+            islandEnd("state-show-in-picker") { model in
+                model.store.values.appFilter = .except
+                model.store.values.appsHiddenIn = [keynote]
+                model.previewPicking = ["com.apple.Safari", "com.apple.Terminal", "com.apple.Music", "com.apple.Notes",
+                                        "com.apple.finder", "com.apple.mail", "com.apple.Preview", "com.apple.iWork.Keynote",
+                                        "com.figma.Desktop"].map { id in
+                    let app = ChosenApp(bundleID: id, name: id.components(separatedBy: ".").last ?? id)
+                    return PickableApp(bundleID: id, name: AppIcons.name(for: app), icon: AppIcons.icon(for: id))
+                }
+            }
+            let positioned = makeModel(defaults: defaults)
+            positioned.store.values.setIslandStyle(.island, hasNotch: false)
+            positioned.store.values.setIslandOffset(-320, forDisplay: IslandDisplayKey.builtin)
+            positioned.expanded = .island
+            let (natural, viewport) = measure(positioned, metrics: floating)
+            emit("state-position", shot(positioned, metrics: floating, scroll: (natural - viewport) * 0.62))
+        }
+
         // 5. Motion: the page mounting (cards drop in one after another) and a section opening (its rows cascade),
         // sampled on the very curves the live page runs (`appearAfter`).
         do {
@@ -156,7 +195,8 @@ enum SettingsPreviewRenderer {
             store: store, hooks: hooks, maintenance: maintenance, recorder: HotkeyRecorder(),
             hotkey: .preview(status: .active(.defaultToggle)),
             screens: [ScreenOption(id: "A", name: L10n.shared.language == .ru ? "Встроенный дисплей Retina" : "Built-in Retina Display", isMain: true, hasNotch: true),
-                      ScreenOption(id: "B", name: "DELL U2720Q", isMain: false, hasNotch: false)])
+                      ScreenOption(id: "B", name: "DELL U2720Q", isMain: false, hasNotch: false)],
+            updates: .preview(version: "1.0", build: "1"))
         model.systemReduceMotion = { false }
         return model
     }

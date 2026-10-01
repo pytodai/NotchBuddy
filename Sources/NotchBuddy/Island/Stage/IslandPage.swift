@@ -153,6 +153,13 @@ final class IslandPage {
     var cascadeGeneration = 0
     /// Bumped with every blur (the filter's removal checks it).
     var blurGeneration = 0
+    /// While the island slides sideways in a content swap (an open near the screen's edge), the page holds its place on
+    /// screen: this offset (points, a function of media time) cancels the slide on `shift`'s `sublayerTransform`, and
+    /// `pinUntil` is when it is 0 again for good (`IslandStage.pinPages`). nil: the page rides with the island.
+    var pin: ((CFTimeInterval) -> Double)?
+    var pinUntil: CFTimeInterval = 0
+    /// A leaving page's place on screen (from the anchor), which its pin holds.
+    var pinScreen: Double?
 
     init(id: IslandPageID, state: IslandViewState, receiver: IslandContentReceiver) {
         self.id = id

@@ -306,6 +306,22 @@ final class AppModel: ObservableObject {
         Task { await provider.nudge() }
     }
 
+    // MARK: Relaunching
+
+    /// How long every session must have been silent before the app may relaunch on its own (to install an update).
+    nonisolated static let quietSessionAge: TimeInterval = 20 * 60
+
+    /// Relaunching now would take nothing away from the user. Sessions live in memory only, so a relaunch forgets
+    /// them, their last answers and any «Готово» card: no permission card, no notice on screen or waiting in the
+    /// queue, no agent working or waiting, and no session with an event in the last `quietSessionAge`.
+    func canRelaunchQuietly(quietSessionAge: TimeInterval = AppModel.quietSessionAge) -> Bool {
+        guard pendingPermissions.isEmpty, flash == nil, flashQueue.isEmpty else { return false }
+        let moment = now()
+        return !store.sessions.values.contains {
+            $0.status == .working || $0.status == .waitingForUser || moment.since($0.lastEventMoment) < quietSessionAge
+        }
+    }
+
     // MARK: Internals
 
     private func hasPending(_ key: SessionKey) -> Bool {

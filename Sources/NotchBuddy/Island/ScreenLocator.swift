@@ -22,11 +22,18 @@ struct IslandMetrics: Equatable {
     var gap: CGFloat = 0
     /// The screen's width: the open list takes a share of it (`IslandLayout.listWidth`).
     var screenWidth: CGFloat = 1512
+    /// How far the island's anchor (its home: the screen's top center, or the camera housing's center) is from the
+    /// screen's left edge (nil: the middle). A dragged «Островок» stays within the screen (`IslandLayout.shiftRange`).
+    var anchorInset: CGFloat?
 
     static let fallback = IslandMetrics(style: .floating, notchWidth: 0, barHeight: 34, menuBarHeight: 24)
 
     /// «Островок» (detached from the top edge).
     var detached: Bool { gap > 0 }
+
+    /// Room from the anchor to the screen's left and right edges.
+    var roomLeft: CGFloat { anchorInset ?? screenWidth / 2 }
+    var roomRight: CGFloat { screenWidth - roomLeft }
 
     /// The same screen in the other style changes only the silhouette (not the content's layout, nor the canvas):
     /// the shape morphs between them.
@@ -51,11 +58,22 @@ struct IslandPlacement: Equatable {
     var metrics: IslandMetrics
     /// The screen's frame (the island's hit area never reaches past it).
     var screenFrame: CGRect
+    /// The display's key for what is remembered per screen (`IslandDisplayKey`: the dragged capsule's offset).
+    var displayKey: String = IslandDisplayKey.builtin
+
+    init(displayID: CGDirectDisplayID, anchor: CGPoint, metrics: IslandMetrics, screenFrame: CGRect, displayKey: String) {
+        self.displayID = displayID
+        self.anchor = anchor
+        self.metrics = metrics
+        self.screenFrame = screenFrame
+        self.displayKey = displayKey
+    }
 
     /// The island's home on `screen` in `style`. «Островок» on a notched screen floats below the camera housing and lays
     /// its content out as on a screen without a notch (there is no housing to leave room for).
     init(screen: NSScreen, style: IslandStyle = .notch) {
         displayID = screen.displayID
+        displayKey = screen.islandDisplayKey
         let frame = screen.frame
         screenFrame = frame
         let notchHeight = screen.safeAreaInsets.top
@@ -72,6 +90,7 @@ struct IslandPlacement: Equatable {
                                     menuBarHeight: strip.rounded(),
                                     gap: (notchHeight > 0 ? notchHeight.rounded() : 0) + IslandLayout.islandGap,
                                     screenWidth: frame.width.rounded())
+            metrics.anchorInset = (anchor.x - frame.minX).rounded()
             return
         }
         if notchHeight > 0,
@@ -94,12 +113,20 @@ struct IslandPlacement: Equatable {
                                     barHeight: IslandMetrics.floatingBarHeight(menuBar: strip),
                                     menuBarHeight: strip.rounded(), screenWidth: frame.width.rounded())
         }
+        metrics.anchorInset = (anchor.x - frame.minX).rounded()
     }
 }
 
 extension NSScreen {
     var displayID: CGDirectDisplayID {
         (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+    }
+
+    /// What is remembered per screen is keyed by the display itself (not its UUID, which changes with the port).
+    var islandDisplayKey: String {
+        let id = displayID
+        return IslandDisplayKey.make(builtin: CGDisplayIsBuiltin(id) != 0, vendor: CGDisplayVendorNumber(id),
+                                     model: CGDisplayModelNumber(id), serial: CGDisplaySerialNumber(id))
     }
 }
 
@@ -117,6 +144,8 @@ final class ScreenLocator {
     var preferredScreen: () -> NSScreen? = { nil }
     /// Settings → Остров → Стиль: the look the island takes on a screen.
     var style: (NSScreen) -> IslandStyle = { _ in .notch }
+    /// Stands in for the screens (the controller's tests: a "screen" far from every real one).
+    var fixedPlacement: IslandPlacement?
 
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var pollTimer: Timer?
@@ -164,6 +193,12 @@ final class ScreenLocator {
     /// Returns the current placement.
     @discardableResult
     func evaluate(notify: Bool = true) -> IslandPlacement? {
+        if let fixedPlacement {
+            guard fixedPlacement != placement else { return placement }
+            placement = fixedPlacement
+            if notify { onChange?(fixedPlacement) }
+            return fixedPlacement
+        }
         let screen = preferredScreen() ?? Self.frontmostWindowScreen() ?? currentScreenIfStillConnected() ?? NSScreen.main
             ?? NSScreen.screens.first
         guard let screen else { return placement }

@@ -156,6 +156,9 @@ struct IslandActions {
     var tappedClosedIsland: () -> Void = {}
     /// The pointer went down (true) or up without a click (false) on the closed island.
     var pressClosedIsland: (Bool) -> Void = { _ in }
+    /// The press on the closed island moved, or came up after moving: «Островок» is dragged sideways. Returns whether the
+    /// press is a drag (its mouse-up is then no click).
+    var dragClosedIsland: (IslandDragEvent) -> Bool = { _ in false }
     /// The pin button in the header: the only way to keep the island open after the pointer leaves.
     var togglePin: () -> Void = {}
     var jump: (SessionKey) -> Void = { _ in }
@@ -175,6 +178,14 @@ struct IslandActions {
     var cycleUsage: () -> Void = {}
     /// The pointer rests on a tab of the strip: its page may be built ahead.
     var prepareTab: (WidgetKind) -> Void = { _ in }
+}
+
+/// A press on the closed island, as the stage view reports it.
+enum IslandDragEvent: Equatable {
+    /// The pointer is at `point` (screen coordinates) with the button down, `dy` points above or below where it went down.
+    case moved(NSPoint, dy: CGFloat)
+    /// The button came up.
+    case ended
 }
 
 /// What the «Готово» card's buttons do.
@@ -285,6 +296,11 @@ final class IslandViewState {
 
     /// The closed island's usage ring (closed content coordinates), when it shows one: a click there switches agent.
     @ObservationIgnored var closedRingRect: CGRect?
+    /// «Островок» dragged sideways: where the user put it on this screen (`NotchSettings.islandOffsets`), its center's
+    /// offset from the anchor in points. Clamped to the screen where it is used (`targetShift`).
+    @ObservationIgnored var islandOffset: CGFloat = 0
+    /// While the capsule is being dragged: where it is drawn (rubber band included); nil otherwise.
+    @ObservationIgnored var dragShift: CGFloat?
 
     @ObservationIgnored let clock = IslandClock()
     @ObservationIgnored var actions = IslandActions()
@@ -581,12 +597,35 @@ final class IslandViewState {
         return g
     }
 
-    func setHovering(_ on: Bool) {
+    /// Where the island's center is heading, from the anchor: the dragged position while a drag runs, else the user's
+    /// offset clamped so the target silhouette stays on screen (`IslandLayout.shift`; 0 for «Чёлка»). An open island
+    /// therefore opens from wherever the capsule is and stays on screen near an edge.
+    func targetShift() -> CGFloat {
+        if let dragShift { return dragShift }
+        return IslandLayout.shift(offset: islandOffset, width: shiftWidth, metrics: metrics)
+    }
+
+    /// The width the island's place is clamped with: the target silhouette's when open, the resting closed island's
+    /// otherwise (so neither the hover grow nor the retract ever nudges it sideways).
+    var shiftWidth: CGFloat {
+        mode.isOpen ? geometry.width : closedRestWidth
+    }
+
+    /// The closed island at rest (not hovered): the capsule end to end on «Островок» («Ширина капсулы», or a widget's
+    /// face), with its ears otherwise.
+    var closedRestWidth: CGFloat {
+        let content = contentSize(.closed).width
+        return metrics.detached ? content : content + 2 * IslandLayout.closedEar(metrics)
+    }
+
+    /// `riding`: the grow rides the transition under way, on its spring (a capsule grabbed out of the open island lifts
+    /// as it folds back, not on a quicker spring of its own).
+    func setHovering(_ on: Bool, riding: Bool = false) {
         guard hovering != on else { return }
-        IslandPerf.shared?.transition(on ? "hover-in" : "hover-out", window: 0.3)
+        if !riding { IslandPerf.shared?.transition(on ? "hover-in" : "hover-out", window: 0.3) }
         defer { IslandPerf.shared?.motionCommitted() }
         withAnimation(IslandMotion.hover.animation) { hovering = on }
-        retarget(with: reduceMotion ? IslandMotion.reduced : IslandMotion.hover)
+        retarget(with: riding ? nil : reduceMotion ? IslandMotion.reduced : IslandMotion.hover)
         // The list is likely next: the stage builds it now, while the pointer rests.
         if on, mode == .collapsed || mode == .idle { renderer?.prepare(openTarget()) }
     }
