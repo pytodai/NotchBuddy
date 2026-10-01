@@ -1,0 +1,4 @@
+/* Permission prompts (Russian). Info.plist holds the English text as the base. */
+"NSAppleEventsUsageDescription" = "NotchBuddy переключает на нужное окно и вкладку терминала (iTerm2, Terminal), когда ты кликаешь по сессии агента, и управляет музыкой в Spotify и «Музыке» прямо из острова.";
+"NSCalendarsFullAccessUsageDescription" = "NotchBuddy показывает на острове ближайшие встречи, время до начала и кнопку звонка. События читаются только на этом Mac и никуда не отправляются.";
+"NSCalendarsUsageDescription" = "NotchBuddy показывает на острове ближайшие встречи, время до начала и кнопку звонка. События читаются только на этом Mac и никуда не отправляются.";

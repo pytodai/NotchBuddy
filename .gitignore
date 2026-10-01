@@ -1,0 +1,21 @@
+# Build products
+.build
+.build*
+build
+build *
+*.xcodeproj
+.swiftpm/
+xcuserdata/
+
+# Editors and tools
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Finder / iCloud duplicates ("file 2", "file 2.swift")
+* 2
+* 2.*
+
+# Promo master (GitHub Release asset, not in git)
+docs/media/*4k*

@@ -1,0 +1,4 @@
+/* Permission prompts (English). Info.plist holds the English text as the base. */
+"NSAppleEventsUsageDescription" = "NotchBuddy switches to the right terminal window and tab (iTerm2, Terminal) when you click an agent session, and controls Spotify and Music right from the island.";
+"NSCalendarsFullAccessUsageDescription" = "NotchBuddy shows your upcoming meetings on the island: how long until they start and a button to join the call. Events are read only on this Mac and are never sent anywhere.";
+"NSCalendarsUsageDescription" = "NotchBuddy shows your upcoming meetings on the island: how long until they start and a button to join the call. Events are read only on this Mac and are never sent anywhere.";

@@ -1,0 +1,996 @@
+/* NotchBuddy — English.
+   Keys are the Russian source text used in code (`L("…")`). `%@` / `%1$@` are arguments, `%%` a percent sign;
+   plural keys ("один|несколько|много") take "one|other" here. Every key must also be in ru.lproj (L10nTests). */
+
+
+/* NotchBuddy/AppModel.swift */
+"%@ — готово" = "%@ — done";
+"Ждёт тебя" = "Needs you";
+
+/* NotchBuddy/Design/Components/NBProgress.swift */
+"%@ %%" = "%@%%";
+
+/* NotchBuddy/Design/Components/NBToggle.swift */
+"включено" = "on";
+"выключено" = "off";
+
+/* NotchBuddy/Design/Icons/NBIcon.swift */
+"Агент" = "Agent";
+"Батарея" = "Battery";
+"Без звука" = "No sound";
+"Вопрос" = "Question";
+"Галочка" = "Checkmark";
+"Готово" = "Done";
+"Дальше" = "Next";
+"Ждёт" = "Waiting";
+"Закрепить" = "Pin";
+"Закрыть" = "Close";
+"Звук" = "Sound";
+"Играть" = "Play";
+"Инструмент" = "Tool";
+"Календарь" = "Calendar";
+"Копировать" = "Copy";
+"Магия" = "Magic";
+"Музыка" = "Music";
+"Назад" = "Previous";
+"Настройки" = "Settings";
+"Ошибка" = "Error";
+"Папка" = "Folder";
+"Пауза" = "Pause";
+"Перейти" = "Jump";
+"План" = "Plan";
+"Поиск" = "Search";
+"Полка" = "Shelf";
+"Правка" = "Edit";
+"Простой" = "Idle";
+"Процессор" = "CPU";
+"Работает" = "Working";
+"Раскрыть" = "Expand";
+"Сеть" = "Network";
+"Таймер" = "Timer";
+"Терминал" = "Terminal";
+"Уведомление" = "Notification";
+"Чтение" = "Read";
+
+/* NotchBuddy/HookInstallService.swift */
+"%@: хуки установлены частично — %@" = "%@: hooks partly installed — %@";
+"Codex запускает только доверенные хуки: для каждого нужна запись trusted_hash в ~/.codex/config.toml. Без неё (или если хук изменился) Codex молча его пропускает.\n«Переустановить» запишет доверие заново. Можно и вручную: /hooks в Codex или «Настройки → Hooks» в приложении Codex." = "Codex runs only trusted hooks: each needs a trusted_hash entry in ~/.codex/config.toml. Without one (or if the hook changed), Codex silently skips it.\n“Reinstall” writes the trust again. You can also do it by hand: /hooks in Codex, or Settings → Hooks in the Codex app.";
+"Для Codex хуки также будут отмечены как доверенные в ~/.codex/config.toml — без этого Codex их не запускает." = "For Codex, the hooks will also be marked as trusted in ~/.codex/config.toml — Codex doesn’t run them otherwise.";
+"Найдены: %@.\nNotchBuddy добавит свои хуки в их настройки, чтобы показывать статус сессий и запросы разрешений. Чужие хуки не трогаются, перед каждым изменением делается резервная копия в ~/.notchbuddy/backups." = "Found: %@.\nNotchBuddy will add its hooks to their settings to show session status and permission requests. Other hooks are left alone, and every change is backed up to ~/.notchbuddy/backups first.";
+"Не все хуки установлены" = "Not all hooks were installed";
+"Не сейчас" = "Not now";
+"Подключить NotchBuddy к агентам?" = "Connect NotchBuddy to your agents?";
+"Потом это можно изменить в меню «Хуки»." = "You can change this later in the Hooks menu.";
+"Установить" = "Install";
+"Хуки установлены" = "Hooks installed";
+"агент не найден" = "agent not found";
+"не установлены" = "not installed";
+"неизвестная ошибка" = "unknown error";
+"ошибка" = "error";
+"установлены" = "installed";
+"установлены частично" = "partly installed";
+
+/* NotchBuddy/Island/AgentStyle.swift */
+"Выдать дополнительные права" = "Grant extra permissions";
+"Вызвать MCP-инструмент" = "Call an MCP tool";
+"Выполнить команду" = "Run a command";
+"Запустить субагента" = "Start a subagent";
+"Изменить файлы" = "Edit files";
+"Искать по файлам" = "Search files";
+"Использовать инструмент" = "Use a tool";
+"Обратиться к сети" = "Access the network";
+"Прочитать файл" = "Read a file";
+"Утвердить план" = "Approve the plan";
+
+/* NotchBuddy/Island/CollapsedIslandView.swift */
+"Нет сессий" = "No sessions";
+
+/* NotchBuddy/Island/ExpandedIslandView.swift */
+"Включить звуки" = "Turn sounds on";
+"Выключить звуки" = "Turn sounds off";
+"Закрепить открытым" = "Pin open";
+"Запусти Claude Code, Codex или Kimi —\nсессии появятся здесь сами." = "Start Claude Code, Codex or Kimi —\nsessions show up here on their own.";
+"Открепить: список закроется, когда уведёшь курсор" = "Unpin: the list closes once the pointer leaves";
+"Пока тихо" = "All quiet";
+"Сессии" = "Sessions";
+"ждёт|ждут|ждут" = "waiting|waiting";
+"ошибка|ошибки|ошибок" = "error|errors";
+"работает|работают|работают" = "working|working";
+
+/* NotchBuddy/Island/FlashView.swift */
+"%@ закончил" = "%@ finished";
+"Ждёт подтверждения" = "Waiting for approval";
+"за %@" = "in %@";
+
+/* NotchBuddy/Island/IslandFormat.swift */
+"%@ назад" = "%@ ago";
+"%@ д" = "%@ d";
+"%@ д %@ ч" = "%@ d %@ h";
+"%@ мин" = "%@ min";
+"%@ с" = "%@ s";
+"%@ ч" = "%@ h";
+"%@ ч %@ мин" = "%@ h %@ min";
+"сброс меньше чем через минуту" = "resets in under a minute";
+"сброс через %@" = "resets in %@";
+"только что" = "just now";
+
+/* NotchBuddy/Island/IslandPreviews.swift */
+"нет данных (API выключен)" = "no data (API off)";
+
+/* NotchBuddy/Island/IslandTabs.swift */
+"Чьи лимиты: %@. Клик — следующий (Авто → Claude → Codex → Kimi)" = "Limits shown: %@. Click for the next (Auto → Claude → Codex → Kimi)";
+
+/* NotchBuddy/Island/PermissionCardView.swift */
+"%@ просит разрешения" = "%@ asks for permission";
+"1 из %@" = "1 of %@";
+"В терминал" = "In terminal";
+"Всегда" = "Always";
+"Запретить" = "Deny";
+"Запретить (⌘N, пока курсор на карточке)" = "Deny (⌘N while the pointer is on the card)";
+"Клавиатура у карточки: ⌘Y — разрешить, ⌘N — запретить, ⌘T — в терминал. Уведи курсор, чтобы вернуть её приложению." = "The card has the keyboard: ⌘Y allow, ⌘N deny, ⌘T in terminal. Move the pointer away to give it back to the app.";
+"Невидимые и управляющие символы показаны как ⟨U+…⟩ — проверь внимательно" = "Invisible and control characters are shown as ⟨U+…⟩ — check carefully";
+"Нужен ответ" = "Needs an answer";
+"Нужно разрешение" = "Permission needed";
+"Ответить в терминале агента (⌘T, пока курсор на карточке)" = "Answer in the agent’s terminal (⌘T while the pointer is on the card)";
+"Показана только часть запроса — целиком он виден в терминале" = "Only part of the request is shown — the terminal has all of it";
+"Показано %@ из %@ %@ — прокрути вниз" = "Showing %@ of %@ %@ — scroll down";
+"Показано не всё — прокрути вниз" = "There’s more — scroll down";
+"Пояснение модели" = "Model’s explanation";
+"Разрешить" = "Allow";
+"Разрешить и больше не спрашивать" = "Allow and don’t ask again";
+"Разрешить один раз (⌘Y, пока курсор на карточке)" = "Allow once (⌘Y while the pointer is on the card)";
+"Что будет разрешено" = "What will be allowed";
+"ждёт %@" = "waiting %@";
+"строки|строк|строк" = "line|lines";
+
+/* NotchBuddy/Island/PermissionDetail.swift */
+"\n\n… ещё %@ симв. не показано" = "\n\n… %@ more characters not shown";
+"\n\n── другие параметры ──\n" = "\n\n── other parameters ──\n";
+"@@ правка %@ из %@" = "@@ edit %@ of %@";
+"Агент не указал, какие права нужны" = "The agent didn’t say which permissions it needs";
+"Без аргументов" = "No arguments";
+"Без подробностей" = "No details";
+"пустая строка|пустые строки|пустых строк" = "blank line|blank lines";
+
+/* NotchBuddy/Island/Stage/IslandStageFilm.swift */
+"Запускать при входе" = "Launch at login";
+"Звуки уведомлений" = "Notification sounds";
+"Лимиты Claude через API" = "Claude limits via API";
+
+/* NotchBuddy/Island/UsageView.swift */
+"5 часов" = "5 hours";
+"7 дней" = "7 days";
+"Лимит Claude за 5 часов: %@" = "Claude 5-hour limit: %@";
+"Лимиты Claude: %@" = "Claude limits: %@";
+"Лимиты недоступны: API выключен" = "Limits unavailable: the API is off";
+
+/* NotchBuddy/LaunchAtLogin.swift */
+"Автозапуск работает только для приложения NotchBuddy.app (не для swift run)." = "Launch at login works only for NotchBuddy.app (not swift run).";
+
+/* NotchBuddy/Mascots/PixelMascotView.swift */
+"Думает" = "Thinking";
+
+/* NotchBuddy/MenuBarController.swift */
+"%@ не найден на этом Mac" = "%@ isn’t on this Mac";
+"%@: %@%% · сброс %@" = "%@: %@%% · resets %@";
+"%@: %@%% · сброс в %@" = "%@: %@%% · resets at %@";
+"5ч" = "5h";
+"7д" = "7d";
+"Kimi: только уведомления, разрешать нужно в самом Kimi" = "Kimi: notices only — approve requests in Kimi itself";
+"Всегда на острове" = "Always on the island";
+"Выйти" = "Quit";
+"Выполняется…" = "Working…";
+"Доступно только при запуске из NotchBuddy.app" = "Available only when running NotchBuddy.app";
+"Звук, когда агент закончил или ждёт тебя" = "A sound when an agent finishes or needs you";
+"Лимиты Claude" = "Claude limits";
+"Настройки…" = "Settings…";
+"Не удалось %@ хуки %@" = "Couldn’t %@ the %@ hooks";
+"Не удалось изменить автозапуск" = "Couldn’t change launch at login";
+"Нет активных сессий" = "No active sessions";
+"Нужно разрешение в Системных настройках → Основные → Объекты входа" = "Needs approval in System Settings → General → Login Items";
+"Островки" = "Widgets";
+"Открыть логи" = "Open logs";
+"Открыть остров: %@" = "Open the island: %@";
+"Ошибка: %@" = "Error: %@";
+"Переустановить" = "Reinstall";
+"Показать файл настроек" = "Show config file";
+"Попробовать установить" = "Try to install";
+"Порядок и настройки…" = "Order and settings…";
+"Почему так?" = "Why?";
+"Проверяю…" = "Checking…";
+"Разреши NotchBuddy в Системных настройках → Основные → Объекты входа." = "Allow NotchBuddy in System Settings → General → Login Items.";
+"События от агентов не принимаются — см. логи" = "Not receiving agent events — see the logs";
+"Удалить" = "Uninstall";
+"Хуки" = "Hooks";
+"Хуки %@" = "%@ hooks";
+"Хуки Codex без доверия" = "Codex hooks aren’t trusted";
+"Читает вход Claude Code из связки ключей и раз в 5 минут запрашивает лимиты у api.anthropic.com. Выключено — только данные из statusLine, без сети и без связки ключей." = "Reads Claude Code’s login from the keychain and asks api.anthropic.com for the limits every 5 minutes. Off: statusLine data only, no network and no keychain.";
+"выполняется…" = "working…";
+"готово" = "done";
+"ждёт тебя" = "needs you";
+"нет данных" = "no data";
+"проверяю…" = "checking…";
+"простаивает" = "idle";
+"работает" = "working";
+"удалить" = "uninstall";
+"установить" = "install";
+
+/* NotchBuddy/Services/AgentUsageHub.swift */
+"лимиты появятся после ответа Codex" = "limits appear after Codex replies";
+
+/* NotchBuddy/Services/KimiUsageFetcher.swift */
+"войдите в Kimi Code заново" = "sign in to Kimi Code again";
+"лимит запросов, попробую позже" = "rate limited, will retry later";
+"не удалось получить лимиты" = "couldn’t get the limits";
+"не удалось прочитать вход Kimi" = "couldn’t read the Kimi login";
+"неверный адрес" = "bad address";
+"неверный ответ" = "bad response";
+"нет входа в Kimi Code" = "not signed in to Kimi Code";
+"откройте Kimi Code, чтобы обновить" = "open Kimi Code to refresh";
+"ошибка сети" = "network error";
+
+/* NotchBuddy/Services/UsageFetcher.swift */
+"вход в Claude отозван" = "Claude login revoked";
+"доступ запрещён" = "access denied";
+"лимит запросов" = "rate limited";
+"не удалось прочитать вход Claude" = "couldn’t read the Claude login";
+"нет входа в Claude" = "not signed in to Claude";
+"ошибка сервера" = "server error";
+"ошибка сервера (%@)" = "server error (%@)";
+"токен Claude истёк" = "Claude token expired";
+"токен Claude устарел" = "Claude token is out of date";
+"токен без доступа к лимитам" = "token can’t read limits";
+
+/* NotchBuddy/Sessions/SessionCardDetails.swift */
+"вызов|вызова|вызовов" = "call|calls";
+
+/* NotchBuddy/Sessions/SessionStrings.swift */
+"%@,%@ с" = "%@.%@ s";
+"%@ д назад" = "%@ d ago";
+"%@ мин назад" = "%@ min ago";
+"%@ ч назад" = "%@ h ago";
+"Без дела" = "Idle";
+"В работе" = "Working";
+"Ввод в терминал" = "Terminal input";
+"Веб" = "Web";
+"Вопрос тебе" = "Question for you";
+"Вывод команды" = "Command output";
+"Думает…" = "Thinking…";
+"Ждёт твоего ответа" = "Waiting for your reply";
+"Закончил" = "Finished";
+"Запись файла" = "Write file";
+"Запрос" = "Prompt";
+"Запрос прав" = "Permission request";
+"Запроса пока не было" = "No prompt yet";
+"Инструменты" = "Tools";
+"Инструменты ещё не вызывались" = "No tool calls yet";
+"Навык" = "Skill";
+"Нет активных задач" = "Nothing to do";
+"Ожидание" = "Waiting";
+"Остановка задачи" = "Stop task";
+"Ответ" = "Reply";
+"Открыть папку" = "Open folder";
+"Открыть терминал или приложение этой сессии" = "Open this session’s terminal or app";
+"Подробнее" = "More";
+"Поиск в сети" = "Web search";
+"Показать полностью" = "Show all";
+"Правка блокнота" = "Edit notebook";
+"Правка файла" = "Edit file";
+"Правка файлов" = "Edit files";
+"Приложение" = "App";
+"Просмотр картинки" = "View image";
+"Расписание" = "Schedule";
+"Режим плана" = "Plan mode";
+"Сбой" = "Failed";
+"Свернуть" = "Collapse";
+"Свернуть запрос" = "Show less";
+"Свободен" = "Idle";
+"Сессия" = "Session";
+"Скопировано" = "Copied";
+"Скопировать путь" = "Copy path";
+"Список задач" = "To-do list";
+"Субагент" = "Subagent";
+"Убрать" = "Remove";
+"Убрать из списка (ждущие запросы уйдут в терминал)" = "Remove from the list (pending requests go back to the terminal)";
+"Ход завершён" = "Turn finished";
+"Ход прервался с ошибкой" = "Turn ended with an error";
+"Цель" = "Goal";
+"ещё %@" = "%@ more";
+"ждёт" = "waiting";
+"идёт" = "running";
+"прервано" = "interrupted";
+"свободен" = "idle";
+"сервер" = "server";
+"субагент" = "subagent";
+
+/* NotchBuddy/Sessions/SessionsPreviewRenderer.swift */
+"API перегружен" = "API overloaded";
+"шаг|шага|шагов" = "step|steps";
+
+/* NotchBuddy/Settings/HookSettingsModel.swift */
+"Не найден" = "Not found";
+"Не подключён" = "Not connected";
+"Не удалось %@: %@" = "Couldn’t %@: %@";
+"Подключён" = "Connected";
+"Хуки удалены" = "Hooks removed";
+"Частично" = "Partly";
+
+/* NotchBuddy/Settings/SettingsControls.swift */
+"Вкл" = "On";
+"Выкл" = "Off";
+"Точно?" = "Sure?";
+"скоро" = "soon";
+
+/* NotchBuddy/Settings/SettingsIcons.swift */
+"Агенты и хуки" = "Agents and hooks";
+"Горячая клавиша" = "Hotkey";
+"Запуск при входе" = "Launch at login";
+"Звуки" = "Sounds";
+"Лимиты" = "Limits";
+"О NotchBuddy" = "About NotchBuddy";
+"Остров" = "Island";
+"Оформление" = "Appearance";
+"Приватность и логи" = "Privacy and logs";
+"Язык · Language" = "Language · Язык";
+
+/* NotchBuddy/Settings/SettingsMaintenance.swift */
+"Не всё удалось удалить: %@" = "Couldn’t delete everything: %@";
+"Резервных копий ещё не было" = "No backups yet";
+"Удалено: %@ %@" = "Deleted %@ %@";
+"Удалять было нечего" = "Nothing to delete";
+"копия|копии|копий" = "backup|backups";
+
+/* NotchBuddy/Settings/SettingsPage.swift */
+" · показываю %@" = " · showing %@";
+"%@ · анимации %@" = "%@ · motion: %@";
+"%@ · занято" = "%@ · taken";
+"%@ · раз в %@%@" = "%@ · every %@%@";
+"Claude через API" = "Claude via API";
+"NotchBuddy стартует вместе с Mac" = "NotchBuddy starts with your Mac";
+"Авто · %@" = "Auto · %@";
+"Агенты не найдены" = "No agents found";
+"Без телеметрии" = "No telemetry";
+"Без телеметрии · %@" = "No telemetry · %@";
+"Версия %@" = "Version %@";
+"Включены · громкость %@ %%" = "On · volume %@%%";
+"Всё сохраняется и применяется сразу" = "Everything saves and applies right away";
+"Выключен" = "Off";
+"Выключена" = "Off";
+"Выключены" = "Off";
+"Закрыть настройки" = "Close settings";
+"Наведение %@" = "Hover: %@";
+"Нужно разрешение в Объектах входа" = "Needs approval in Login Items";
+"Открывается по клику" = "Opens on click";
+"Подключено %@ из %@" = "%@ of %@ connected";
+"Развернуть" = "Expand";
+"Разрешить…" = "Allow…";
+"Только statusLine" = "statusLine only";
+"Только агенты — без вкладок" = "Agents only — no tabs";
+"Только для NotchBuddy.app" = "NotchBuddy.app only";
+"копий нет" = "no backups";
+
+/* NotchBuddy/Settings/SettingsPreviews.swift */
+"хуки без доверия: %@ из %@" = "untrusted hooks: %@ of %@";
+
+/* NotchBuddy/Settings/SettingsSections.swift */
+"%@ не подойдёт — нужен ⌘, ⌃ или ⌥" = "%@ won’t work — it needs ⌘, ⌃ or ⌥";
+"%@. Codex запускает только доверенные хуки — «Починить» запишет доверие в ~/.codex/config.toml." = "%@. Codex runs only trusted hooks — “Fix” writes the trust to ~/.codex/config.toml.";
+"hotkey::Работает" = "Active";
+"«Авто» — все агенты с данными, а кольцо — агента на острове. Клик по лимитам в списке тоже переключает." = "“Auto” shows every agent with data, and the ring follows the agent on the island. Clicking the limits in the list switches too.";
+"Акцент" = "Accent";
+"Анимации" = "Motion";
+"Берёт вход Claude Code из связки ключей и спрашивает api.anthropic.com не чаще раза в 5 минут. Выключено — только statusLine, без сети." = "Uses Claude Code’s login from the keychain and asks api.anthropic.com at most every 5 minutes. Off: statusLine only, no network.";
+"Бесплатно, без аккаунтов, подписок и слежки." = "Free — no accounts, subscriptions or tracking.";
+"В системе включено «Уменьшение движения» — остров двигается сдержанно." = "Reduce Motion is on in macOS — the island moves gently.";
+"Версия %@%@" = "Version %@%@";
+"Вкладки открытого острова. Включённый островок показывает и своё «живое» состояние в свёрнутом: трек, встречу, таймер. Потяни за ручку, чтобы поменять порядок." = "Tabs of the open island. A widget that’s on also shows its live state in the closed island: the track, a meeting, a timer. Drag the handle to reorder.";
+"Включится, как только остров его подхватит" = "Turns on as soon as the island picks it up";
+"Выезжать при запросе разрешения" = "Open on permission requests";
+"Выключено" = "Off";
+"Где активное окно" = "Where the active window is";
+"Громкость" = "Volume";
+"Дополнительный" = "Secondary";
+"Другие агенты" = "Other agents";
+"Закреплять открытый список" = "Pin the open list";
+"Занято другой программой — выбери другое" = "Taken by another app — pick another";
+"Записать сочетание" = "Record shortcut";
+"Из любой программы; клавиатуру остров не забирает" = "From any app; the island never takes the keyboard";
+"Или выбери готовое" = "Or pick one";
+"Иначе он закрывается, как только уводишь курсор; булавка в заголовке держит его всегда" = "Otherwise it closes as soon as the pointer leaves; the pin in the header always keeps it open";
+"Как в macOS — сейчас %@. Переключается сразу, без перезапуска." = "Follows macOS — %@ right now. Switches instantly, no restart.";
+"Карточка откроется сама, как только агент спросит" = "The card opens on its own as soon as an agent asks";
+"Когда агент закончил, ждёт тебя или спрашивает" = "When an agent finishes, needs you or asks";
+"Кольцо на свёрнутом острове" = "Ring on the closed island";
+"Короткие пружины без отскока, без встряски и летящего значка." = "Short springs with no bounce, no shake and no flying icon.";
+"Лимиты Kimi через API" = "Kimi limits via API";
+"Логи" = "Logs";
+"На экране без выреза остров не прячется" = "On a screen without a notch, the island stays visible";
+"Нажми сочетание · Esc — отмена" = "Press a shortcut · Esc to cancel";
+"Никакой аналитики, телеметрии и автообновлений. Всё остаётся на этом Mac." = "No analytics, telemetry or auto-updates. Everything stays on this Mac.";
+"Новые агенты появятся здесь сами" = "New agents show up here on their own";
+"Обновлять лимиты" = "Refresh limits";
+"Основной" = "Main";
+"Основной экран" = "Main display";
+"Остановить" = "Stop";
+"Остров переезжает вслед за окном" = "The island follows the window";
+"Остров у выреза для Claude Code, Codex и Kimi" = "A notch island for Claude Code, Codex and Kimi";
+"Островок — капсула чуть ниже края экрана, как Dynamic Island на iPhone. «Авто» — чёлка." = "Island is a capsule just below the top edge, like the Dynamic Island on iPhone. “Auto” is the notch.";
+"Открывать остров сочетанием" = "Open the island with a shortcut";
+"Открывать при наведении" = "Open on hover";
+"Открыть" = "Open";
+"Отменить" = "Cancel";
+"Очистить" = "Clear";
+"Перед каждым изменением — резервная копия в ~/.notchbuddy/backups. Чужие хуки не трогаются." = "Every change is backed up to ~/.notchbuddy/backups first. Other hooks are left alone.";
+"Переключается сразу, без перезапуска: остров, меню, уведомления и настройки." = "Switches instantly, no restart: the island, menu, notices and settings.";
+"Подключить" = "Connect";
+"Пока Kimi Code вошёл: читает его вход (не меняя его) и спрашивает api.kimi.com не чаще раза в 5 минут. Codex — по его журналам на этом Mac, без сети." = "While Kimi Code is signed in: reads its login (without changing it) and asks api.kimi.com at most every 5 minutes. Codex comes from its logs on this Mac, no network.";
+"Показать в Finder" = "Show in Finder";
+"Показывать без сессий" = "Show without sessions";
+"Полные анимации, даже если в системе включено «Уменьшение движения»." = "Full motion, even with Reduce Motion on in macOS.";
+"Послушать" = "Play";
+"Починить" = "Fix";
+"Пружины, всплески и встряска — как задумано. Следует за «Уменьшением движения» в системе." = "Springs, flares and shakes as designed. Follows Reduce Motion in macOS.";
+"Размер" = "Size";
+"Резервные копии конфигов" = "Config backups";
+"С полосой меню" = "The one with the menu bar";
+"Сбросить" = "Reset";
+"Сбросить всё?" = "Reset everything?";
+"Сбросить настройки" = "Reset settings";
+"Сколько лимита израсходовано, рядом с сессией" = "How much of the limit is used, next to the session";
+"Стиль" = "Style";
+"Ширина капсулы" = "Capsule width";
+"%@ пт" = "%@ pt";
+"Свёрнутый островок: персонаж слева, статус справа; проект и время — при наведении." = "Closed island: the mascot on the left, the status on the right; the project and the clock show on hover.";
+"Считаю…" = "Counting…";
+"Только статус и уведомления: разрешать инструменты нужно в самом Kimi." = "Status and notices only: approve tools in Kimi itself.";
+"Уведомление держится" = "Notices stay for";
+"Удалить все?" = "Delete all?";
+"Удалить?" = "Uninstall?";
+"Хуки заодно отмечаются доверенными в ~/.codex/config.toml — иначе Codex их не запускает." = "The hooks are also marked as trusted in ~/.codex/config.toml — Codex doesn’t run them otherwise.";
+"Хуки и резервные копии останутся как есть" = "Hooks and backups stay as they are";
+"Чьи лимиты показывать" = "Whose limits to show";
+"Шрифт Manrope · OFL" = "Manrope font · OFL";
+"Экран" = "Display";
+"Язык интерфейса" = "Interface language";
+"вырез" = "notch";
+"не установлен" = "not installed";
+
+/* NotchBuddy/Widgets/Agents/AgentUsageFooterView.swift */
+"<1 мин" = "<1 min";
+"Claude и Kimi — по данным их серверов, Codex — по журналам Codex на этом Mac" = "Claude and Kimi from their servers, Codex from its logs on this Mac";
+"Загрузка лимитов" = "Loading limits";
+"Обновлено %@" = "Updated %@";
+"Такого лимита у этого агента нет" = "This agent has no such limit";
+"лимит исчерпан" = "limit reached";
+"лимит уже сброшен" = "limit already reset";
+"сброшено" = "reset";
+
+/* NotchBuddy/Widgets/Calendar/CalendarLiveActivityView.swift */
+"meeting::идёт" = "now";
+"Подключиться к звонку" = "Join the call";
+"началась" = "started";
+
+/* NotchBuddy/Widgets/Calendar/CalendarSettingsView.swift */
+"%@ мин" = "%@ min";
+"Встреча скоро — на острове" = "Upcoming meeting on the island";
+"Доступ запрещён" = "Access denied";
+"Заранее" = "Heads-up";
+"Календари" = "Calendars";
+"На этом Mac" = "On this Mac";
+"Ограничен профилем" = "Restricted by a profile";
+"Подключён · %@ %@" = "Connected · %@ %@";
+"Показывать завтра" = "Show tomorrow";
+"Свёрнутый остров считает минуты до начала" = "The closed island counts down to the start";
+"События следующего дня под сегодняшними" = "Tomorrow’s events below today’s";
+"Только добавление событий" = "Add-only access";
+"календарь|календаря|календарей" = "calendar|calendars";
+"показан" = "shown";
+"скрыт" = "hidden";
+
+/* NotchBuddy/Widgets/Calendar/CalendarStateViews.swift */
+"%@, и завтра ничего нет. %@" = "%@, and nothing tomorrow. %@";
+"Zoom, Meet, Телемост" = "Zoom, Meet, Telemost";
+"Ближайшая встреча, отсчёт до начала и звонок в один клик." = "Your next meeting, a countdown to it and one-click join.";
+"Время для глубокой работы." = "Time for deep work.";
+"Все встречи позади" = "All meetings are over";
+"Все встречи позади — дальше свободно." = "All meetings are over — the rest is free.";
+"Встреча позади" = "The meeting is over";
+"Встреча позади — дальше свободно." = "The meeting is over — the rest is free.";
+"Встречи — прямо на острове" = "Meetings, right on the island";
+"Два свободных дня" = "Two free days";
+"Доступ к календарям на этом Mac ограничен профилем управления." = "Calendar access on this Mac is restricted by a management profile.";
+"Ждём ответа macOS…" = "Waiting for macOS…";
+"Календарь недоступен" = "Calendar unavailable";
+"Минуты до начала" = "Countdown to start";
+"На сегодня всё" = "That’s all for today";
+"Нет доступа к календарю" = "No calendar access";
+"Ни одной встречи ни сегодня, ни завтра. Самое время для глубокой работы." = "No meetings today or tomorrow. A perfect time for deep work.";
+"Нужен полный доступ" = "Full access needed";
+"Открыть настройки" = "Open Settings";
+"Подключить календарь" = "Connect calendar";
+"Разреши NotchBuddy доступ: Системные настройки → Конфиденциальность и безопасность → Календари." = "Give NotchBuddy access: System Settings → Privacy & Security → Calendars.";
+"Свободный день" = "A free day";
+"Сегодня ни одной встречи — время для глубокой работы." = "No meetings today — time for deep work.";
+"Сейчас NotchBuddy может только добавлять события, а острову нужно их видеть. Выбери «Полный доступ» в разделе «Календари»." = "NotchBuddy can only add events right now, but the island needs to see them. Choose “Full Access” under Calendars.";
+"Только на этом Mac" = "Only on this Mac";
+"Хорошего вечера!" = "Have a nice evening!";
+
+/* NotchBuddy/Widgets/Calendar/CalendarWidgetView.swift */
+"Далее" = "Next";
+"Завтра" = "Tomorrow";
+"Загружаю события…" = "Loading events…";
+"Календарь не подключён" = "Calendar not connected";
+"На сегодня встречи позади" = "Today’s meetings are over";
+"Открыть Календарь" = "Open Calendar";
+"Подключиться" = "Join";
+"Подключиться к звонку в %@" = "Join the call in %@";
+"Подключиться, %@" = "Join, %@";
+"Последняя встреча дня" = "Last meeting of the day";
+"Сегодня" = "Today";
+"Сегодня без встреч" = "No meetings today";
+"Сегодня ещё %@" = "%@ left today";
+"Сейчас" = "Now";
+"Скоро" = "Soon";
+"и ещё %@" = "+ %@";
+"мин" = "min";
+"прошла|прошли|прошло" = "done|done";
+
+/* NotchBuddy/Widgets/IslandWidgets.swift */
+"%@ выключен" = "%@ is off";
+"Бросай" = "Drop it";
+"Обложка, перемотка и кнопки" = "Artwork, scrubbing and buttons";
+"Сюда" = "Here";
+"Через Apple Events: macOS спросит разрешение при первом нажатии" = "Via Apple Events: macOS asks for permission on first use";
+
+/* NotchBuddy/Widgets/Music/MusicControls.swift */
+"Предыдущий трек" = "Previous track";
+"Следующий трек" = "Next track";
+
+/* NotchBuddy/Widgets/Music/MusicLiveActivityView.swift */
+"Без названия" = "Untitled";
+"На паузе" = "Paused";
+"Сейчас играет" = "Now playing";
+
+/* NotchBuddy/Widgets/Music/MusicWidgetView.swift */
+"Включи трек — здесь появятся обложка и управление." = "Play a track — the artwork and controls show up here.";
+"Музыкой" = "Music";
+"Музыку" = "Music";
+"Ничего не играет" = "Nothing playing";
+"Открыть %@" = "Open %@";
+"Перейти в %@" = "Go to %@";
+"Поставь Spotify или открой Музыку — здесь появится то, что играет." = "Install Spotify or open Music — what’s playing shows up here.";
+"Чтобы управлять %@, разреши это в «Автоматизации»." = "To control %@, allow it in Automation.";
+"ЭФИР" = "LIVE";
+
+/* NotchBuddy/Widgets/Shelf/ShelfBadgeView.swift */
+"Брось на полку" = "Drop on the shelf";
+"На полке %@" = "%@ on the shelf";
+"Отпускай — %@" = "Let go — %@";
+"Отпускай!" = "Let go!";
+"Полка пуста" = "The shelf is empty";
+
+/* NotchBuddy/Widgets/Shelf/ShelfDragSource.swift */
+"Убрать с полки" = "Remove from the shelf";
+
+/* NotchBuddy/Widgets/Shelf/ShelfSettings.swift */
+"Временные" = "Temporary";
+"Никогда" = "Never";
+"Полка хранит свою копию каждого файла. Убранные копии уходят в Корзину." = "The shelf keeps its own copy of every file. Removed copies go to the Trash.";
+"Полка хранит ссылки: удалишь оригинал — он исчезнет и с полки." = "The shelf keeps links: delete the original and it’s gone from the shelf too.";
+"Снимки экрана, вложения и прочие временные файлы полка копирует к себе — они не пропадут." = "Screenshots, attachments and other temporary files are copied to the shelf, so they don’t vanish.";
+
+/* NotchBuddy/Widgets/Shelf/ShelfSettingsSection.swift */
+"Вкл." = "On";
+"Выкл." = "Off";
+"Копировать файлы на полку" = "Copy files to the shelf";
+"Открывать полку, когда тащишь файл" = "Open the shelf while dragging a file";
+"Перетащи файл к острову — он подождёт на полке, пока не понадобится." = "Drag a file to the island — it waits on the shelf until you need it.";
+"Показывать число файлов на острове" = "Show the file count on the island";
+
+/* NotchBuddy/Widgets/Shelf/ShelfStore.swift */
+"Файл.%@" = "File.%@";
+
+/* NotchBuddy/Widgets/Shelf/ShelfWidgetView.swift */
+"Нажми ещё раз, чтобы убрать всё с полки" = "Click again to clear the shelf";
+"Они полежат здесь, пока не понадобятся. Потом просто вытащи их куда нужно." = "They’ll wait here until you need them. Then just drag them where they go.";
+"Отпускай — полка подержит" = "Let go — the shelf will hold it";
+"Отпусти — положу %@" = "Let go — I’ll keep %@";
+"Отпусти — положу на полку" = "Let go — onto the shelf";
+"Очистить всё?" = "Clear all?";
+"Перетащи сюда файлы" = "Drag files here";
+"Показать всё в Finder" = "Show all in Finder";
+"Убрать всё с полки" = "Clear the shelf";
+
+/* NotchBuddy/Widgets/System/BatteryLiveActivityView.swift */
+"Батарея почти села" = "Battery almost empty";
+"Заряжается" = "Charging";
+"Заряжен полностью" = "Fully charged";
+"Низкий заряд" = "Low battery";
+"Низкий заряд батареи: %@ %%" = "Low battery: %@%%";
+"От батареи" = "On battery";
+"Подключено к сети" = "Plugged in";
+"Подключи зарядку" = "Plug in the charger";
+"до полной %@" = "%@ to full";
+"зарядка на паузе" = "charging paused";
+"идёт зарядка" = "charging";
+"можно отключить зарядку" = "you can unplug";
+"осталось %@ · подключи зарядку" = "%@ left · plug in";
+"оцениваю время работы…" = "estimating time left…";
+"подключи зарядку" = "plug in";
+"хватит на %@" = "%@ to go";
+
+/* NotchBuddy/Widgets/System/SystemGauges.swift */
+"Батарея %@ %%" = "Battery %@%%";
+
+/* NotchBuddy/Widgets/System/SystemSettingsView.swift */
+"Диск" = "Disk";
+"Ниже — уведомление" = "Notify below";
+"Низкий заряд у выреза" = "Low battery at the notch";
+"Память" = "Memory";
+"Питание" = "Power";
+"Показывать" = "Show";
+"Порог заряда" = "Battery threshold";
+"Свёрнутый остров покажет батарею, когда она садится" = "The closed island shows the battery when it runs low";
+"Система" = "System";
+"Уведомлять о зарядке и отключении" = "Notify on plugging in and unplugging";
+"ЦП" = "CPU";
+
+/* NotchBuddy/Widgets/System/SystemWidgetView.swift */
+"ЦП за минуту" = "CPU, 1 min";
+"греется" = "warm";
+"заряжается" = "charging";
+"заряжен" = "charged";
+"из %@" = "of %@";
+"нагрузка высокая" = "high load";
+"нагрузка повышена" = "elevated load";
+"от батареи" = "on battery";
+"перегрев" = "overheating";
+"пик %@" = "peak %@";
+"подключено" = "plugged in";
+"работает %@" = "up %@";
+"свободно из %@" = "free of %@";
+"собираю…" = "collecting…";
+"энергосбережение" = "low power";
+"ядро|ядра|ядер" = "core|cores";
+
+/* NotchBuddy/Widgets/Timer/TimerDial.swift */
+"%@: осталось %@%@" = "%@: %@ left%@";
+", пауза" = ", paused";
+"пауза" = "paused";
+
+/* NotchBuddy/Widgets/Timer/TimerFinishNoticeView.swift */
+"+1 мин" = "+1 min";
+"Время вышло" = "Time’s up";
+"Ок" = "OK";
+"Повторить" = "Repeat";
+"Таймер «%@» закончился" = "Timer “%@” is done";
+"время вышло · %@" = "time’s up · %@";
+"таймер на %@" = "%@ timer";
+
+/* NotchBuddy/Widgets/Timer/TimerPreferences.swift */
+"Бас" = "Basso";
+"Бутылка" = "Bottle";
+"Колокольчик" = "Tink";
+"Лягушка" = "Frog";
+"Морзе" = "Morse";
+"Мурлыканье" = "Purr";
+"Пинг" = "Ping";
+"Порыв" = "Blow";
+"Сонар" = "Submarine";
+"Сосуми" = "Sosumi";
+"Стекло" = "Glass";
+"Фанк" = "Funk";
+"Фанфары" = "Hero";
+"Хлопок" = "Pop";
+
+/* NotchBuddy/Widgets/Timer/TimerSettingsView.swift */
+"В свёрнутом острове" = "In the closed island";
+"Звук в конце" = "Sound at the end";
+"Играет, когда время вышло" = "Plays when time is up";
+"Искры и вспышка, когда время вышло" = "Sparks and a flash when time is up";
+"Обратный отсчёт ближайшего таймера у выреза" = "The next timer counts down at the notch";
+"Празднование" = "Celebration";
+"Прослушать" = "Preview";
+
+/* NotchBuddy/Widgets/Timer/TimerWidgetView.swift */
+"%@ на паузе" = "%@ paused";
+"Больше" = "More";
+"Быстрый старт" = "Quick start";
+"Выбери время или начни с пресета" = "Pick a time or start from a preset";
+"Готово!" = "Done!";
+"Запустить таймер на %@" = "Start a %@ timer";
+"Меньше" = "Less";
+"Новый таймер" = "New timer";
+"Отменить таймер" = "Cancel timer";
+"Продолжить" = "Resume";
+"Старт" = "Start";
+"до %@" = "until %@";
+"закончится в %@" = "ends at %@";
+"и ещё %@ %@" = "and %@ more %@";
+"идёт|идут|идут" = "running|running";
+"на паузе" = "paused";
+"на паузе · осталось %@" = "paused · %@ left";
+"почти готово · ещё %@ с" = "almost done · %@ s left";
+"своё время" = "custom";
+"таймер|таймера|таймеров" = "timer|timers";
+
+/* NotchBuddyCore/AgentCatalog.swift */
+"Cline: хуки видны в его настройках (Hooks); проверь, что они включены." = "Cline: the hooks show up in its settings (Hooks); make sure they’re on.";
+"Codex: новые сессии подхватят хуки; уже запущенные лучше перезапустить." = "Codex: new sessions pick up the hooks; better restart the running ones.";
+"Copilot: новые чаты подхватят хуки (в VS Code должен быть включён chat.useHooks)." = "Copilot: new chats pick up the hooks (VS Code needs chat.useHooks on).";
+"Cursor: новые чаты подхватят хуки; если нет — перезапусти Cursor." = "Cursor: new chats pick up the hooks; if not, restart Cursor.";
+"Grok: новые сессии подхватят хуки; в запущенной — /hooks, затем r." = "Grok: new sessions pick up the hooks; in a running one, /hooks, then r.";
+"Kimi Code: перезапусти его, чтобы хуки заработали." = "Kimi Code: restart it for the hooks to work.";
+"VS Code — статус; Copilot CLI — ещё и разрешения" = "VS Code: status; Copilot CLI: permissions too";
+"Статус и разрешения с острова" = "Status and permissions from the island";
+"Только статус: разрешения — в Cline" = "Status only: approve in Cline";
+"Только статус: разрешения — в Grok" = "Status only: approve in Grok";
+"Только статус: разрешения — в Kimi" = "Status only: approve in Kimi";
+"Только статус: у Cursor нет события «ждёт тебя»" = "Status only: Cursor has no “needs you” event";
+
+/* NotchBuddyCore/Calendar/CalendarFormat.swift */
+"%@ в %@" = "%@ at %@";
+"%@,5 ч" = "%@.5 h";
+"встреча|встречи|встреч" = "meeting|meetings";
+"ещё %@" = "%@ left";
+"завтра" = "tomorrow";
+"заканчивается" = "ending";
+"сейчас" = "now";
+"через %@" = "in %@";
+
+/* NotchBuddyCore/Calendar/MeetingLink.swift */
+"VK Звонки" = "VK Calls";
+"Контур.Толк" = "Kontur.Talk";
+"МТС Линк" = "MTS Link";
+"Телемост" = "Telemost";
+
+/* NotchBuddyCore/CatalogHookInstallers.swift */
+"hooks.%@ должно быть массивом" = "hooks.%@ must be an array";
+"Не удалось разобрать %@" = "Couldn’t parse %@";
+"Нет хуков NotchBuddy для событий: %@" = "No NotchBuddy hooks for events: %@";
+"не удалось сделать резервную копию: %@" = "couldn’t make a backup: %@";
+"ожидался JSON-объект" = "expected a JSON object";
+"поле hooks должно быть объектом" = "the hooks field must be an object";
+"получился некорректный JSON" = "the result isn’t valid JSON";
+"там уже есть чужой хук Cline; NotchBuddy его не трогает" = "there’s already another Cline hook there; NotchBuddy leaves it alone";
+"файл не читается как UTF-8" = "the file isn’t valid UTF-8";
+
+/* NotchBuddyCore/ClaudeAdapter.swift */
+" (ещё %@)" = " (+%@ more)";
+"Достигнут лимит запросов" = "Rate limit reached";
+"Запрещено пользователем в NotchBuddy" = "Denied by the user in NotchBuddy";
+"Модель не найдена" = "Model not found";
+"Некорректный запрос к API" = "Invalid API request";
+"Ошибка API" = "API error";
+"Ошибка API (%@)" = "API error (%@)";
+"Ошибка авторизации" = "Authentication failed";
+"Ошибка сервера API" = "API server error";
+"Превышен лимит длины ответа" = "Response length limit exceeded";
+"Проблема с оплатой" = "Billing problem";
+
+/* NotchBuddyCore/ClaudeHookInstaller.swift */
+"не удалось разобрать файл без потерь" = "couldn’t parse the file without losing anything";
+"некорректный JSON" = "invalid JSON";
+"некорректный JSON: %@" = "invalid JSON: %@";
+"файл не в кодировке UTF-8" = "the file isn’t UTF-8";
+
+/* NotchBuddyCore/ClineAdapter.swift */
+"Ошибка Cline" = "Cline error";
+
+/* NotchBuddyCore/CodexHookInstaller.swift */
+"%@ — Codex игнорирует весь файл" = "%@ — Codex ignores the whole file";
+"%@: «%@» = %@ — нужно целое неотрицательное число без точки и экспоненты" = "%@: “%@” = %@ — needs a non-negative whole number, no decimal point or exponent";
+"%@: «hooks» в группе не массив" = "%@: “hooks” in a group isn’t an array";
+"%@: «matcher» не строка" = "%@: “matcher” isn’t a string";
+"%@: группа не объект" = "%@: a group isn’t an object";
+"%@; hooks.json уже изменён, и вернуть его не удалось — восстановите его из резервной копии в %@" = "%@; hooks.json was already changed and couldn’t be put back — restore it from the backup in %@";
+"«%@» должен быть целым неотрицательным числом" = "“%@” must be a non-negative whole number";
+"«%@» не массив" = "“%@” isn’t an array";
+"«%@» не строка" = "“%@” isn’t a string";
+"«async» не boolean" = "“async” isn’t a boolean";
+"«description» не строка" = "“description” isn’t a string";
+"«hooks» не объект" = "“hooks” isn’t an object";
+"«input» не объект" = "“input” isn’t an object";
+"«input» содержит null, который не переводится в TOML" = "“input” contains null, which TOML can’t express";
+"«type» не строка" = "“type” isn’t a string";
+"корневой элемент не объект" = "the root isn’t an object";
+"неизвестный ключ верхнего уровня «%@»" = "unknown top-level key “%@”";
+"неизвестный тип обработчика «%@»" = "unknown handler type “%@”";
+"обработчик не объект" = "a handler isn’t an object";
+"у mcp_tool-обработчика нет «server»/«tool»" = "an mcp_tool handler has no “server”/“tool”";
+"у обработчика нет поля «type»" = "a handler has no “type” field";
+"у обработчика нет строки «command»" = "a handler has no “command” string";
+"установлены не все хуки: %@ из %@" = "not all hooks installed: %@ of %@";
+"хуки без доверия" = "hooks aren’t trusted";
+"хуки отключены в config.toml ([features] hooks = false)" = "hooks are turned off in config.toml ([features] hooks = false)";
+
+/* NotchBuddyCore/CodexTrust.swift */
+"[[hooks.state]] не поддерживается" = "[[hooks.state]] isn’t supported";
+"hooks.state задан встроенной таблицей, автоматическое редактирование невозможно" = "hooks.state is an inline table; it can’t be edited automatically";
+"лишний текст после заголовка таблицы" = "extra text after a table header";
+"лишняя закрывающая скобка" = "extra closing bracket";
+"неверная escape-последовательность" = "invalid escape sequence";
+"недопустимый символ в ключе" = "invalid character in a key";
+"незакрытая многострочная строка" = "unterminated multi-line string";
+"незакрытая строка" = "unterminated string";
+"незакрытый массив или таблица" = "unterminated array or table";
+"неполный ключ" = "incomplete key";
+"нет значения" = "missing value";
+"ожидалось «]]»" = "expected “]]”";
+"строка %@: %@" = "line %@: %@";
+
+/* NotchBuddyCore/CursorAdapter.swift */
+"Ошибка Cursor" = "Cursor error";
+
+/* NotchBuddyCore/HookInstaller.swift */
+"Не удалось записать %@: %@" = "Couldn’t write %@: %@";
+"Не удалось разобрать %@: %@" = "Couldn’t parse %@: %@";
+"нет прав на запись в папку %@" = "no permission to write to %@";
+"слишком длинная цепочка символических ссылок" = "too many symbolic links";
+"файл защищён от изменений (флаг uchg)" = "the file is locked (uchg flag)";
+
+/* NotchBuddyCore/KimiHookInstaller.swift */
+"command должен быть строкой" = "command must be a string";
+"event должен быть строкой" = "event must be a string";
+"matcher должен быть строкой" = "matcher must be a string";
+"timeout = %@: нужно целое число секунд от 1 до 600" = "timeout = %@: needs whole seconds from 1 to 600";
+"в [[hooks]] нет обязательного ключа command" = "[[hooks]] is missing the required key command";
+"в [[hooks]] нет обязательного ключа event" = "[[hooks]] is missing the required key event";
+"из-за неё Kimi отключит все хуки из config.toml, включая хуки NotchBuddy" = "because of it, Kimi turns off every hook in config.toml, NotchBuddy’s included";
+"исправьте или удалите эту запись [[hooks]]" = "fix or remove this [[hooks]] entry";
+"ключ «%@» задан дважды" = "key “%@” is set twice";
+"не удалось проверить результат правки" = "couldn’t verify the edit";
+"недопустимый ключ «%@» в [[hooks]] (разрешены только event, matcher, command, timeout)" = "key “%@” isn’t allowed in [[hooks]] (only event, matcher, command, timeout)";
+"неизвестное событие «%@»" = "unknown event “%@”";
+"некорректное значение %@" = "invalid value for %@";
+"переустановите хуки NotchBuddy" = "reinstall the NotchBuddy hooks";
+"пустой command" = "empty command";
+"с такой записью Kimi не сможет войти в аккаунт или выйти из него" = "with this entry, Kimi can’t sign in or out";
+"событие «%@» не поддерживается конфигурацией Kimi (node-sdk)" = "event “%@” isn’t supported by Kimi’s config (node-sdk)";
+"строка %@: %@ — %@; %@" = "line %@: %@ — %@; %@";
+"строка %@: hooks задан не только таблицами [[hooks]], не могу безопасно изменить" = "line %@: hooks is set by more than [[hooks]] tables; can’t change it safely";
+
+/* NotchBuddyCore/SessionTitles.swift */
+"без папки" = "no folder";
+
+/* NotchBuddyCore/Settings/BackupsMaintenance.swift */
+"%@ Б" = "%@ B";
+"%@ КБ" = "%@ KB";
+"%@ МБ" = "%@ MB";
+"Копий нет" = "No backups";
+
+/* NotchBuddyCore/Settings/SettingsValues.swift */
+"%@ с" = "%@ s";
+"0,1 с" = "0.1 s";
+"0,3 с" = "0.3 s";
+"0,6 с" = "0.6 s";
+"Авто" = "Auto";
+"Агент закончил" = "Agent finished";
+"Агенты" = "Agents";
+"Батарея, процессор, память" = "Battery, CPU, memory";
+"Встречи сегодня и завтра" = "Meetings today and tomorrow";
+"Графит" = "Graphite";
+"Запрос разрешения" = "Permission request";
+"Как в системе" = "System";
+"Компактный" = "Compact";
+"Коралл" = "Coral";
+"Крупный" = "Large";
+"Лазурь" = "Azure";
+"Лайм" = "Lime";
+"Мята" = "Mint";
+"Обычный" = "Regular";
+"Островок" = "Island";
+"По клику" = "On click";
+"Полные" = "Full";
+"Сессии и лимиты — всегда на месте" = "Sessions and limits — always there";
+"Сниженные" = "Reduced";
+"Сразу" = "Instantly";
+"Таймеры и помодоро" = "Timers and pomodoro";
+"Трек, обложка и управление" = "Track, artwork and controls";
+"Файлы под рукой: перетащи на остров" = "Files at hand: drag them to the island";
+"Фиалка" = "Violet";
+"Фуксия" = "Fuchsia";
+"Чёлка" = "Notch";
+"Янтарь" = "Amber";
+
+/* NotchBuddyCore/Shelf/ShelfDisk.swift */
+"Файл" = "File";
+
+/* NotchBuddyCore/Shelf/ShelfModel.swift */
+"Архив" = "Archive";
+"Аудио" = "Audio";
+"Б" = "B";
+"Видео" = "Video";
+"ГБ" = "GB";
+"Документ" = "Document";
+"Изображение" = "Image";
+"КБ" = "KB";
+"Код" = "Code";
+"МБ" = "MB";
+"Презентация" = "Presentation";
+"ТБ" = "TB";
+"Таблица" = "Spreadsheet";
+"Текст" = "Text";
+"объект|объекта|объектов" = "item|items";
+"файл|файла|файлов" = "file|files";
+
+/* NotchBuddyCore/System/SystemMetrics.swift */
+"ПБ" = "PB";
+"не заряжается" = "not charging";
+"осталось %@" = "%@ left";
+
+/* NotchBuddyCore/Timer/TimerEngine.swift */
+"0 с" = "0 s";
+"Десять минут" = "Ten minutes";
+"Минутка" = "One minute";
+"Перерыв" = "Break";
+"Помодоро" = "Pomodoro";
+
+/* NotchBuddyCore/UsageModel.swift */
+"%@ дн" = "%@ d";
+"Месяц" = "Month";
+"Неделя" = "Week";
+
+/* notchbuddy-bridge/BridgeCommand.swift */
+"notchbuddy-bridge: неизвестный агент «%@»" = "notchbuddy-bridge: unknown agent “%@”";
+"notchbuddy-bridge: неизвестный источник «%@»" = "notchbuddy-bridge: unknown source “%@”";
+"Использование:" = "Usage:";
+"строка состояния Claude Code: запоминает лимиты и печатает одну строку" = "Claude Code status line: caches the limits and prints one line";
+"установить, удалить или проверить хуки агентов" = "install, uninstall or check the agents’ hooks";
+"хук агента: передаёт событие на остров NotchBuddy" = "agent hook: passes the event to the NotchBuddy island";
+
+/* notchbuddy-bridge/HooksCommand.swift */
+"ошибка: %@" = "error: %@";
+"частично (%@)" = "partly (%@)";
+
+/* notchbuddy-bridge/StatusLineCommand.swift */
+"5ч %@%%" = "5h %@%%";
+"7д %@%%" = "7d %@%%";
+
+/* Hotkey clashes, island style */
+"Предыдущий источник ввода" = "Previous input source";
+"Следующий источник ввода" = "Next input source";
+"Поиск Spotlight" = "Spotlight search";
+"Окно поиска Finder" = "Finder search window";
+"Показать рабочий стол" = "Show Desktop";
+"Окна программы" = "Application windows";
+"Переход между столами" = "Move between Spaces";
+"Снимок экрана" = "Screenshot";
+"Следующее окно" = "Next window";
+"сочетание macOS" = "a macOS shortcut";
+"инструменты разработчика в браузерах" = "developer tools in browsers";
+"терминал в VS Code" = "the terminal in VS Code";
+"клавиши F11 и F12 в программах" = "F11 and F12 in apps";
+"переключение раскладки" = "keyboard layout switching";
+"%@ занято macOS: «%@»" = "%@ is taken by macOS: “%@”";
+"Работает · может мешать: %@" = "Works · may clash with %@";
+"Занято macOS: «%@» — выбери другое" = "Taken by macOS: “%@” — pick another";
+"Монитор" = "Monitor";
+"Экран с вырезом" = "Notched screen";
+"Островок — капсула чуть ниже края экрана, как Dynamic Island на iPhone; свёрнутый — компактный." = "Island: a capsule just below the screen’s edge, like the Dynamic Island on iPhone; compact when closed.";
+"Стиль острова" = "Island style";
+
+/* Accent */
+"Акцент настроек" = "Settings accent";
+"Цвет переключателей и выбора на этой странице. Сам остров — чёрный с белым, цвет только у статусов." = "The colour of switches and choices on this page. The island itself stays black and white; only statuses carry colour.";
+
+/* Usage strip, session rows */
+"Вы:" = "You:";
+"лимиты…" = "limits…";
+"нет лимитов" = "no limits";
+"Чьи лимиты: %@. Клик — следующий агент с данными" = "Whose limits: %@. Click for the next agent with numbers";
+"Лимиты %@" = "%@ limits";
+"%@м" = "%@m";
+"%@ч" = "%@h";
+"%@ч%@м" = "%@h%@m";
+"%@д" = "%@d";
+"%@д%@ч" = "%@d%@h";
+"мес" = "mo";
+"%@%%" = "%@%%";
+
+/* Done card */
+"Скопировать" = "Copy";
+"Скопировать ответ агента целиком" = "Copy the agent’s whole answer";
+"Следующий ответ" = "Next answer";
+"Показывать ответ агента при завершении" = "Show the agent’s answer when it finishes";
+"Карточка «Готово» с последним сообщением агента: перейти, скопировать, закрыть" = "A “Done” card with the agent’s last message: jump, copy, close";

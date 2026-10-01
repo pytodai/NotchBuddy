@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>ru</string>
+	<key>CFBundleDisplayName</key><string>NotchBuddy</string>
+	<key>CFBundleName</key><string>NotchBuddy</string>
+	<key>CFBundleExecutable</key><string>NotchBuddy</string>
+	<key>CFBundleIdentifier</key><string>me.sokolov.notchbuddy</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>LSUIElement</key><true/>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSAppleEventsUsageDescription</key><string>NotchBuddy switches to the right terminal window and tab (iTerm2, Terminal) when you click an agent session, and controls Spotify and Music right from the island.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key><string>NotchBuddy shows your upcoming meetings on the island: how long until they start and a button to join the call. Events are read only on this Mac and are never sent anywhere.</string>
+	<key>NSCalendarsUsageDescription</key><string>NotchBuddy shows your upcoming meetings on the island: how long until they start and a button to join the call. Events are read only on this Mac and are never sent anywhere.</string>
+</dict>
+</plist>
